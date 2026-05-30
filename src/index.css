@@ -1,0 +1,1851 @@
+/* ================================================================
+   LabSpark AI — Master Enterprise Stylesheet (src/index.css)
+   "Visual Authority × Modern SaaS" — Styled by Senior Frontend Designer
+   ================================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* Grayscale Palette */
+  --slate-50: #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+  --slate-950: #020617;
+
+  /* Scientific Authority Teal */
+  --teal-50: #f0fdfa;
+  --teal-100: #ccfbf1;
+  --teal-200: #99f6e4;
+  --teal-500: #14b8a6;
+  --teal-600: #0d9488;
+  --teal-700: #0f766e;
+  --teal-800: #115e59;
+  --teal-900: #134e4a;
+
+  /* Sleek AI Accent Indigo */
+  --indigo-50: #e0e7ff;
+  --indigo-100: #c7d2fe;
+  --indigo-600: #4f46e5;
+  --indigo-700: #4338ca;
+  --indigo-900: #312e81;
+
+  /* State Alerts */
+  --rose-600: #e11d48;
+  --rose-100: #ffe4e6;
+  --orange-500: #f97316;
+  --orange-100: #ffedd5;
+  --green-600: #16a34a;
+  --green-100: #dcfce7;
+  --amber-500: #f59e0b;
+  --amber-600: #d97706;
+  --amber-100: #fef3c7;
+}
+
+/* Base Body Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--slate-50);
+  color: var(--slate-900);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4, h5, h6, .font-display {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 700;
+  color: var(--slate-900);
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.mono {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.88em;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--slate-300);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--slate-400);
+}
+
+/* Blueprint Grid Technical Background */
+.grid-blueprint {
+  background-color: var(--slate-50);
+  background-image: 
+    linear-gradient(rgba(13, 148, 136, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(13, 148, 136, 0.025) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.grid-blueprint-dark {
+  background-color: var(--slate-950);
+  background-image: 
+    linear-gradient(rgba(20, 184, 166, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20, 184, 166, 0.035) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Glassmorphism Cards */
+.card-glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.015);
+  border-radius: 12px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card-glass-dark {
+  background: rgba(15, 23, 42, 0.9);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.2);
+  border-radius: 16px;
+}
+
+/* Reusable Micro-Animations */
+@keyframes drift {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-5px) rotate(0.8deg); }
+}
+
+@keyframes voicePulse {
+  0%, 100% { transform: scaleY(0.25); }
+  50% { transform: scaleY(1); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
+@keyframes sparkle {
+  0%, 100% { opacity: 0; transform: scale(0.65); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.975); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.hover-lift {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.hover-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+}
+
+.press:active {
+  transform: scale(0.985);
+}
+
+/* Form inputs & interactive triggers */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 13.5px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-primary {
+  background: var(--teal-600);
+  color: #ffffff;
+}
+.btn-primary:hover {
+  background: var(--teal-700);
+  box-shadow: 0 6px 16px rgba(13, 148, 136, 0.18);
+  transform: translateY(-1.5px);
+}
+
+.btn-dark {
+  background: var(--slate-900);
+  color: #ffffff;
+}
+.btn-dark:hover {
+  background: var(--slate-950);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.1);
+  transform: translateY(-1.5px);
+}
+
+.btn-light {
+  background: #ffffff;
+  color: var(--slate-700);
+  border: 1px solid var(--slate-200);
+}
+.btn-light:hover {
+  background: var(--slate-50);
+  border-color: var(--slate-300);
+  transform: translateY(-1.5px);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--slate-900);
+  border: 1px solid var(--slate-300);
+}
+.btn-outline:hover {
+  background: var(--slate-100);
+  border-color: var(--slate-400);
+  transform: translateY(-1.5px);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--slate-700);
+}
+.btn-ghost:hover {
+  background: var(--slate-100);
+  color: var(--slate-900);
+}
+
+/* Glass Meniscus Liquid Simulator */
+.glass-tube-liquid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 0 0 20px 20px;
+  overflow: hidden;
+}
+
+.meniscus-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.42);
+}
+
+/* Litmus Indicator Stacks */
+.litmus-stack-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.litmus-stack-card {
+  position: relative;
+  cursor: grab;
+  touch-action: none;
+}
+.litmus-stack-card:active {
+  cursor: grabbing;
+}
+
+/* Observation ledger table */
+.observation-ledger {
+  background: #ffffff;
+  border: 1px solid var(--slate-200);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.015);
+}
+
+.observation-row-graded-correct {
+  background: rgba(22, 163, 74, 0.03) !important;
+}
+
+.observation-row-graded-incorrect {
+  background: rgba(225, 29, 72, 0.03) !important;
+}
+
+/* Graded CBSE Transcript Certificate Double Borders */
+.transcript-certificate {
+  background: #ffffff;
+  border: 3px double var(--slate-300);
+  border-radius: 12px;
+  padding: 36px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.02);
+}
+
+.transcript-header-box {
+  text-align: center;
+  border-bottom: 1.5px solid var(--slate-700);
+  padding-bottom: 20px;
+  margin-bottom: 24px;
+}
+
+/* ================================================================
+   LabSpark 3D Glassware Laboratory Desk & Live Voice HUD Engine
+   ================================================================ */
+
+/* Immersive 3D Laboratory Viewport Scene */
+.lab-viewport-3d {
+  position: relative;
+  width: 100%;
+  height: 380px;
+  border: 1.5px solid var(--slate-300);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: inset 0 0 30px rgba(15, 23, 42, 0.04), 0 4px 16px rgba(15, 23, 42, 0.02);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  perspective: 1200px;
+  perspective-origin: 50% 32%;
+  user-select: none;
+}
+
+/* 3D Camera Rig wrapper bound to React state */
+.lab-camera-rig {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.25s cubic-bezier(0.1, 0.8, 0.3, 1);
+  z-index: 10;
+}
+
+/* Volumetric Academic Lab Room Backdrop */
+.lab-room-bg {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  overflow: hidden;
+  z-index: 1;
+}
+
+/* Clean Laboratory Wall Tile Pattern */
+.lab-wall-tiles {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgba(148, 163, 184, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.12) 1px, transparent 1px);
+  background-size: 50px 38px;
+  opacity: 0.95;
+}
+
+/* Sun-shaft Window Ray */
+.lab-window-glow {
+  position: absolute;
+  right: -100px;
+  top: -100px;
+  width: 480px;
+  height: 480px;
+  background: radial-gradient(circle at 100% 0%, rgba(2, 132, 199, 0.06) 0%, rgba(245, 158, 11, 0.03) 40%, transparent 80%);
+  pointer-events: none;
+  transform: rotate(-12deg);
+  opacity: 0.95;
+}
+
+/* Academic Whiteboard Chart on back wall */
+.lab-poster-periodic {
+  position: absolute;
+  left: 28px;
+  top: 24px;
+  width: 135px;
+  height: 90px;
+  background: #ffffff;
+  border: 1.8px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 5px;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.06);
+  transform: rotateY(18deg) rotateX(6deg);
+  opacity: 0.92;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5px;
+}
+
+.lab-poster-periodic::before {
+  content: "CBSE CHEMICAL CHART";
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 5.5px;
+  font-weight: 800;
+  color: #64748b;
+  letter-spacing: 0.5px;
+  text-align: center;
+  display: block;
+}
+
+.lab-poster-periodic-grid {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 1px;
+  flex: 1;
+}
+
+.lab-poster-periodic-cell {
+  background: #cbd5e1;
+  border-radius: 0.5px;
+}
+
+.lab-poster-periodic-cell:nth-child(3n) { background: #fca5a5; }
+.lab-poster-periodic-cell:nth-child(4n+1) { background: #86efac; }
+.lab-poster-periodic-cell:nth-child(5n+2) { background: #93c5fd; }
+
+/* Wooden Background Shelves with Glassware */
+.lab-back-shelves {
+  position: absolute;
+  right: 48px;
+  top: 24px;
+  width: 150px;
+  height: 120px;
+  transform-style: preserve-3d;
+  transform: rotateY(-14deg) rotateX(6deg);
+  opacity: 0.8;
+}
+
+.shelf-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: #b45309; /* Natural Wood Grain Shelf */
+  border-bottom: 1.8px solid #d97706;
+  border-radius: 2px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.shelf-beaker {
+  position: absolute;
+  width: 14px;
+  height: 25px;
+  background: rgba(255, 255, 255, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 1px 1px 4px 4px;
+}
+
+.shelf-beaker::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 0 0 3px 3px;
+}
+
+.shelf-beaker.b1 { left: 16px; bottom: 8px; height: 30px; }
+.shelf-beaker.b1::before { height: 75%; background: rgba(225, 29, 72, 0.35); }
+.shelf-beaker.b2 { left: 42px; bottom: 8px; height: 22px; width: 11px; }
+.shelf-beaker.b2::before { height: 45%; background: rgba(22, 163, 74, 0.35); }
+.shelf-beaker.b3 { left: 88px; bottom: 68px; height: 26px; }
+.shelf-beaker.b3::before { height: 60%; background: rgba(37, 99, 235, 0.35); }
+.shelf-beaker.b4 { left: 112px; bottom: 68px; height: 18px; width: 13px; }
+.shelf-beaker.b4::before { height: 80%; background: rgba(217, 119, 6, 0.35); }
+
+/* Polished Gray Granite/Epoxy Workbench Countertop */
+.lab-workbench-surface {
+  position: absolute;
+  left: -20%;
+  right: -20%;
+  bottom: -40px;
+  height: 220px;
+  background: linear-gradient(180deg, #cbd5e1 0%, #94a3b8 100%);
+  border-top: 4.5px solid #cbd5e1;
+  box-shadow: inset 0 8px 16px rgba(0, 0, 0, 0.05), 0 -2px 10px rgba(0, 0, 0, 0.04);
+  z-index: 2;
+  transform: rotateX(32deg);
+  transform-origin: bottom center;
+}
+
+/* 3D preserved rack space */
+.rack-3d-desk {
+  position: relative;
+  width: 580px;
+  height: 180px;
+  transform-style: preserve-3d;
+  z-index: 5;
+  margin-top: 60px;
+}
+
+/* Metallic Support Bars and Clamps */
+.rack-bar-3d-front {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 30px;
+  height: 8px;
+  background: linear-gradient(90deg, #64748b, #94a3b8, #64748b);
+  border-radius: 4px;
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  transform: translateZ(48px);
+}
+
+.rack-bar-3d-back {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 126px;
+  height: 8px;
+  background: linear-gradient(90deg, #475569, #64748b, #475569);
+  border-radius: 4px;
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  transform: translateZ(-48px);
+}
+
+.rack-base-3d {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 24px;
+  height: 110px;
+  background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%);
+  border: 1.8px solid #94a3b8;
+  border-radius: 6px;
+  transform: rotateX(90deg) translateZ(5px);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+/* 3D test tube cylinder container */
+.tube-slot-3d {
+  position: absolute;
+  width: 60px;
+  height: 150px;
+  transform-style: preserve-3d;
+  transition: all 0.9s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Clean laboratory grade glassware body */
+.tube-glass-3d {
+  position: absolute;
+  left: 10px;
+  width: 40px;
+  height: 140px;
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.15) 65%);
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  border-top: 2.5px solid rgba(255, 255, 255, 0.55);
+  border-radius: 0 0 20px 20px;
+  transform-style: preserve-3d;
+  box-shadow: inset -4px 0 10px rgba(255, 255, 255, 0.2), inset 2px 0 6px rgba(0, 0, 0, 0.02), 0 8px 16px rgba(15, 23, 42, 0.02);
+  overflow: hidden;
+  transition: all 0.5s ease;
+}
+
+.tube-glass-3d::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 0;
+  width: 4px;
+  height: 90%;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.45) 0%, transparent 100%);
+  border-radius: 100px;
+}
+
+/* Chemical Printed Tape label wrapped on glass cylinder */
+.chemical-sticker-label {
+  position: absolute;
+  top: 24%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32px;
+  height: 38px;
+  background: #ffffff;
+  border: 1px solid #94a3b8;
+  border-radius: 2px;
+  box-shadow: 0 1.5px 4px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.chemical-sticker-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8.5px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.chemical-sticker-formula {
+  font-family: 'Inter', sans-serif;
+  font-size: 6px;
+  font-weight: 600;
+  color: #475569;
+  margin-top: 1.5px;
+}
+
+.chemical-sticker-bar {
+  width: 75%;
+  height: 2px;
+  background: #0284c7; /* standard neutral blue */
+  margin-top: 3px;
+  border-radius: 1px;
+}
+.chemical-sticker-bar.acid { background: var(--rose-600); }
+.chemical-sticker-bar.base { background: var(--indigo-600); }
+.chemical-sticker-bar.neutral { background: var(--green-600); }
+
+/* Realistic fluid column meniscus cap */
+.fluid-column-3d {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 60%;
+  border-radius: 0 0 18px 18px;
+  transform-style: preserve-3d;
+  transition: background 0.8s ease-in-out;
+}
+
+.meniscus-cap-3d {
+  position: absolute;
+  top: -6px;
+  left: 0;
+  right: 0;
+  height: 12px;
+  background: inherit;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  opacity: 0.85;
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.4);
+}
+
+/* 3D Litmus test stand base */
+.test-stand-3d {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%) translateZ(85px);
+  width: 90px;
+  height: 14px;
+  background: linear-gradient(90deg, #1e293b, #475569, #1e293b);
+  border-radius: 6px;
+  border: 1.5px solid #64748b;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25);
+  transform-style: preserve-3d;
+}
+
+/* Chrome metallic support rod */
+.test-stand-rod-3d {
+  position: absolute;
+  left: calc(50% - 3.5px);
+  bottom: 12px;
+  width: 7px;
+  height: 165px;
+  background: linear-gradient(90deg, #475569, #cbd5e1 40%, #cbd5e1 65%, #334155);
+  border-radius: 3px;
+  box-shadow: 1px 0 3px rgba(0, 0, 0, 0.2);
+  transform: translateZ(-28px);
+}
+
+/* Chrome mechanical clamp */
+.test-stand-clamp-3d {
+  position: absolute;
+  left: calc(50% - 25px);
+  top: -95px;
+  width: 50px;
+  height: 5px;
+  background: linear-gradient(to right, #475569, #cbd5e1 80%, #475569);
+  border-radius: 1px;
+  transform: translateZ(-16px);
+  transform-style: preserve-3d;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.test-stand-clamp-3d::after {
+  content: '';
+  position: absolute;
+  right: -2px;
+  top: -6px;
+  width: 14px;
+  height: 18px;
+  border: 2px solid #cbd5e1;
+  border-left: none;
+  border-radius: 0 6px 6px 0;
+  box-shadow: inset -1px 0 2px rgba(255, 255, 255, 0.3);
+}
+
+.test-stand-socket-3d {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 44px;
+  height: 44px;
+  background: rgba(148, 163, 184, 0.85);
+  border: 1.8px solid #cbd5e1;
+  border-radius: 50%;
+}
+
+.rack-shadow-3d {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 12px;
+  height: 35px;
+  background: rgba(15, 23, 42, 0.15);
+  border-radius: 50%;
+  filter: blur(10px);
+  transform: rotateX(90deg) translateZ(-5px);
+  pointer-events: none;
+}
+
+/* 3D Litmus paper dipping animation */
+.litmus-paper-3d {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 10px;
+  height: 94px;
+  border-radius: 2px;
+  top: -100px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 10;
+}
+
+.litmus-paper-3d.dipped {
+  top: 18px !important;
+}
+
+/* Effervescent Rising Bubbles */
+@keyframes riseBubble {
+  0% {
+    transform: translateY(110px) scale(0.6);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.6;
+  }
+  90% {
+    opacity: 0.3;
+  }
+  100% {
+    transform: translateY(12px) scale(1.1);
+    opacity: 0;
+  }
+}
+
+.bubble-particle-3d {
+  position: absolute;
+  bottom: 0;
+  width: 4px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: riseBubble 2.5s infinite linear;
+}
+
+/* ================================================================
+   3D Reagent Inventory Supply Cabinet (Pine/Steel Academic)
+   ================================================================ */
+
+.lab-cabinet-3d {
+  position: absolute;
+  left: 20px;
+  top: 48%;
+  transform: translateY(-50%) rotateY(24deg);
+  width: 140px;
+  height: 290px;
+  background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+  border: 3.5px solid #94a3b8;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.06), inset 0 0 10px rgba(255, 255, 255, 0.6);
+  transform-style: preserve-3d;
+  z-index: 12;
+  transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cabinet-door-3d {
+  position: absolute;
+  top: 0;
+  width: 50%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.16);
+  border: 2px solid #94a3b8;
+  box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.4);
+  z-index: 10;
+  transition: transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+
+.cabinet-door-3d.door-left {
+  left: 0;
+  border-right: 1.5px solid #cbd5e1;
+  transform-origin: left center;
+}
+
+.cabinet-door-3d.door-right {
+  right: 0;
+  border-left: 1.5px solid #cbd5e1;
+  transform-origin: right center;
+}
+
+.cabinet-door-3d.door-left.open {
+  transform: rotateY(-130deg);
+  pointer-events: none;
+}
+
+.cabinet-door-3d.door-right.open {
+  transform: rotateY(130deg);
+  pointer-events: none;
+}
+
+.cabinet-door-3d::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 22px;
+  background: #94a3b8;
+  border-radius: 1px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.cabinet-door-3d.door-left::after { right: 4px; }
+.cabinet-door-3d.door-right::after { left: 4px; }
+
+/* Internal shelves inside locker */
+.cabinet-shelf-3d {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  height: 5px;
+  background: linear-gradient(90deg, #94a3b8, #cbd5e1, #94a3b8);
+  border-bottom: 1.5px solid #64748b;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  transform-style: preserve-3d;
+}
+
+.cabinet-shelf-3d.shelf-1 { top: 92px; }
+.cabinet-shelf-3d.shelf-2 { top: 184px; }
+.cabinet-shelf-3d.shelf-3 { bottom: 8px; }
+
+/* Volumetric Reagent bottle items */
+.cabinet-bottle-slot {
+  position: absolute;
+  width: 25px;
+  height: 48px;
+  transform-style: preserve-3d;
+  cursor: pointer;
+}
+
+.cabinet-bottle-3d {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0.1) 60%);
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-top: 2.2px solid rgba(255, 255, 255, 0.5);
+  border-radius: 4px 4px 2px 2px;
+  box-shadow: inset -1.5px 0 3px rgba(255,255,255,0.2), inset 1px 0 2px rgba(0,0,0,0.02), 0 3px 6px rgba(15, 23, 42, 0.05);
+  transform-style: preserve-3d;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.cabinet-bottle-3d:hover {
+  transform: translateY(-4px) translateZ(10px) scale(1.08);
+  border-color: var(--teal-600);
+  box-shadow: 0 0 8px rgba(13, 148, 136, 0.25);
+}
+
+.cabinet-bottle-3d.selected {
+  border-color: var(--teal-600);
+  background: rgba(13, 148, 136, 0.08);
+  box-shadow: 0 0 10px rgba(13, 148, 136, 0.3);
+  transform: translateY(-4px) translateZ(8px);
+}
+
+.cabinet-bottle-fluid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 60%;
+  border-radius: 0 0 1.5px 1.5px;
+}
+
+/* Formula label badge floating on click hover */
+.cabinet-bottle-label {
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%) scale(0.8);
+  background: #0f172a;
+  color: #ffffff;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 6.5px;
+  font-weight: 700;
+  padding: 1px 3px;
+  border-radius: 2px;
+  border: 0.5px solid rgba(255, 255, 255, 0.1);
+  opacity: 0.9;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Close Locker Button */
+.cabinet-lock-btn {
+  position: absolute;
+  left: 20px;
+  bottom: 16px;
+  background: var(--teal-600);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+  z-index: 25;
+  transition: all 0.2s;
+}
+
+.cabinet-lock-btn:hover {
+  background: var(--teal-700);
+  transform: scale(1.03);
+}
+
+/* ================================================================
+   Professional Whiteboard AI HUD Sidebar (Amrita OLabs Style)
+   ================================================================ */
+
+.voice-hud-panel {
+  background: #ffffff;
+  border-left: 1px solid #e2e8f0;
+  width: 350px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  color: #0f172a;
+}
+
+.voice-hud-header {
+  padding: 20px 22px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #f8fafc;
+}
+
+.voice-hud-soundwave-core {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 150px;
+  position: relative;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+/* Spoken speech message feed bubble */
+.voice-overlay-msg {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 20px;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  animation: fadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Modern CBSE light blue conceptual card */
+.voice-socratic-card {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.04);
+  animation: scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.socratic-question-text {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: #0369a1;
+}
+
+.socratic-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.socratic-option-btn {
+  width: 100%;
+  text-align: left;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #475569;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
+
+.socratic-option-btn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.socratic-option-btn.correct {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #16a34a;
+}
+
+.socratic-option-btn.incorrect {
+  background: #ffe4e6;
+  border-color: #fecdd3;
+  color: #e11d48;
+}
+
+.voice-hud-controls {
+  padding: 20px 24px 28px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: #f8fafc;
+}
+
+.voice-btn-mic {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 3px 10px rgba(14, 165, 233, 0.15);
+}
+
+.voice-btn-mic.active {
+  background: var(--teal-600);
+  color: #ffffff;
+}
+
+.voice-btn-mic.muted {
+  background: var(--rose-600);
+  color: #ffffff;
+  box-shadow: 0 3px 10px rgba(225, 29, 72, 0.15);
+}
+
+/* Floating Label SaaS Auth Inputs */
+.auth-input-container {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.auth-floating-input {
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--slate-50);
+  border: 1.5px solid var(--slate-200);
+  border-radius: 8px;
+  outline: none;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--slate-900);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.auth-floating-input:focus {
+  border-color: var(--teal-600);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.08);
+}
+
+.auth-floating-label {
+  position: absolute;
+  left: 16px;
+  top: 14px;
+  font-size: 14px;
+  color: var(--slate-400);
+  pointer-events: none;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.auth-floating-input:focus ~ .auth-floating-label,
+.auth-floating-input:not(:placeholder-shown) ~ .auth-floating-label {
+  top: -8px;
+  left: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--teal-600);
+  background: #ffffff;
+  padding: 0 5px;
+}
+
+/* ================================================================
+   CBSE Virtual Laboratory 3D Game Room Volumetric Props
+   ================================================================ */
+
+/* Volumetric Bunsen Burner */
+.bunsen-burner-3d {
+  position: absolute;
+  left: 60px;
+  bottom: 12px;
+  width: 44px;
+  height: 65px;
+  transform: translateZ(-25px);
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+
+.burner-base {
+  position: absolute;
+  left: 2px;
+  bottom: 0;
+  width: 40px;
+  height: 8px;
+  background: linear-gradient(90deg, #1e293b, #475569 40%, #94a3b8 60%, #0f172a);
+  border-radius: 4px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+}
+
+.burner-collar {
+  position: absolute;
+  left: 14px;
+  bottom: 8px;
+  width: 16px;
+  height: 10px;
+  background: linear-gradient(90deg, #b45309, #d97706, #78350f);
+  border-radius: 1px;
+}
+
+.burner-barrel {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  width: 8px;
+  height: 34px;
+  background: linear-gradient(90deg, #334155, #64748b 35%, #94a3b8 70%, #1e293b);
+  border-radius: 1px;
+}
+
+.burner-hose {
+  position: absolute;
+  left: -20px;
+  bottom: 4px;
+  width: 36px;
+  height: 14px;
+  border-bottom: 3.5px solid #0f172a;
+  border-left: 3.5px solid #0f172a;
+  border-radius: 0 0 0 16px;
+  opacity: 0.8;
+  transform: rotateX(30deg);
+}
+
+/* Translucent Dual-Color gas flame with kinetic micro-flickering */
+@keyframes flameFlicker {
+  0%, 100% {
+    transform: scale(1) rotate(-1deg);
+    opacity: 0.9;
+  }
+  20% {
+    transform: scaleY(1.1) scaleX(0.95) rotate(1deg);
+    opacity: 0.95;
+  }
+  40% {
+    transform: scaleY(0.92) scaleX(1.05) rotate(-2deg);
+    opacity: 0.85;
+  }
+  60% {
+    transform: scaleY(1.15) scaleX(0.92) rotate(2deg);
+    opacity: 0.98;
+  }
+  80% {
+    transform: scaleY(0.98) scaleX(1.02) rotate(-0.5deg);
+    opacity: 0.9;
+  }
+}
+
+.burner-flame {
+  position: absolute;
+  left: 15px;
+  top: -2px;
+  width: 14px;
+  height: 25px;
+  background: radial-gradient(circle at bottom, rgba(37, 99, 235, 0.92) 15%, rgba(20, 184, 166, 0.75) 45%, rgba(245, 158, 11, 0.2) 90%);
+  border-radius: 50% 50% 20% 20% / 70% 70% 30% 30%;
+  filter: blur(0.7px);
+  animation: flameFlicker 0.45s infinite ease-in-out;
+  box-shadow: 0 0 12px rgba(20, 184, 166, 0.65), 0 0 24px rgba(37, 99, 235, 0.3);
+  transform-origin: bottom center;
+}
+
+/* Volumetric wide beaker with measurements */
+.beaker-3d {
+  position: absolute;
+  left: 140px;
+  bottom: 12px;
+  width: 36px;
+  height: 44px;
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.08) 60%);
+  border: 1.2px solid rgba(255, 255, 255, 0.35);
+  border-radius: 2px 2px 8px 8px;
+  box-shadow: inset -3px 0 8px rgba(255, 255, 255, 0.2), inset 2px 0 6px rgba(0,0,0,0.03), 0 6px 12px rgba(0,0,0,0.3);
+  transform: translateZ(-20px) rotateY(-8deg);
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+
+.beaker-liquid {
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  bottom: 1px;
+  height: 55%;
+  background: rgba(20, 184, 166, 0.28);
+  border-radius: 0 0 7px 7px;
+  box-shadow: inset 0 -4px 6px rgba(20, 184, 166, 0.15);
+}
+
+.beaker-liquid::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: rgba(20, 184, 166, 0.45);
+  border-radius: 50%;
+  border: 0.5px solid rgba(255,255,255,0.3);
+}
+
+/* Beaker volume ticks */
+.beaker-ticks {
+  position: absolute;
+  left: 4px;
+  top: 10px;
+  width: 6px;
+  height: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  opacity: 0.65;
+}
+
+.beaker-ticks::before {
+  content: '';
+  width: 100%;
+  height: 1px;
+  background: #ffffff;
+  box-shadow: 0 6px 0 #ffffff, 0 12px 0 #ffffff, 0 18px 0 #ffffff;
+}
+
+/* Volumetric Round Bottom Flask on metallic ring stand */
+.volumetric-flask-3d {
+  position: absolute;
+  right: 70px;
+  bottom: 12px;
+  width: 42px;
+  height: 72px;
+  transform: translateZ(-35px) rotateY(12deg);
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+
+.flask-stand-ring {
+  position: absolute;
+  left: 2px;
+  bottom: 22px;
+  width: 38px;
+  height: 5px;
+  background: #334155;
+  border-radius: 50%;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.4);
+}
+
+.flask-stand-base {
+  position: absolute;
+  left: 10px;
+  bottom: 0;
+  width: 22px;
+  height: 4px;
+  background: #0f172a;
+  border-radius: 1px;
+}
+
+.flask-stand-rod {
+  position: absolute;
+  left: 19px;
+  bottom: 4px;
+  width: 4px;
+  height: 40px;
+  background: linear-gradient(90deg, #475569, #94a3b8, #334155);
+}
+
+.flask-glass-bulb {
+  position: absolute;
+  left: 5px;
+  bottom: 18px;
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.08) 60%);
+  border: 1.2px solid rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+  box-shadow: inset -3px -3px 8px rgba(255,255,255,0.25), 0 5px 12px rgba(0,0,0,0.35);
+  transform-style: preserve-3d;
+}
+
+.flask-glass-neck {
+  position: absolute;
+  left: 16px;
+  bottom: 45px;
+  width: 10px;
+  height: 25px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0.1) 60%);
+  border: 1.2px solid rgba(255, 255, 255, 0.32);
+  border-bottom: none;
+  border-radius: 2px 2px 0 0;
+}
+
+.flask-liquid-glowing {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: 2px;
+  top: 14px;
+  background: rgba(225, 29, 72, 0.28);
+  border-radius: 0 0 16px 16px;
+  box-shadow: 0 0 10px rgba(225, 29, 72, 0.45);
+}
+
+/* Translucent Safety Goggles resting on desk */
+.goggles-3d {
+  position: absolute;
+  right: 145px;
+  bottom: 10px;
+  width: 38px;
+  height: 18px;
+  transform: translateZ(10px) rotateX(12deg) rotateY(-18deg);
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+
+.goggles-frame {
+  position: absolute;
+  inset: 0;
+  border: 1.5px solid rgba(255, 255, 255, 0.38);
+  background: rgba(99, 102, 241, 0.12);
+  border-radius: 4px 4px 6px 6px;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+}
+
+.goggles-lens-left, .goggles-lens-right {
+  position: absolute;
+  top: 2px;
+  width: 15px;
+  height: 12px;
+  background: rgba(20, 184, 166, 0.15);
+  border: 0.8px solid rgba(255, 255, 255, 0.25);
+  border-radius: 2px 2px 4px 4px;
+}
+
+.goggles-lens-left { left: 2px; }
+.goggles-lens-right { right: 2px; }
+
+.goggles-strap {
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  top: 6px;
+  height: 2px;
+  background: #334155;
+  transform: translateZ(-2px);
+}
+
+/* ================================================================
+   LabSpark 3D Electric Circuit Laboratory CSS Props
+   ================================================================ */
+
+.circuit-board-3d {
+  position: absolute;
+  left: 50%;
+  top: 55%;
+  transform: translate3d(-50%, -50%, 0) translateZ(40px);
+  width: 320px;
+  height: 200px;
+  background: linear-gradient(135deg, #d97706, #b45309); /* Pine wood grain electrical block */
+  border: 4px solid #78350f;
+  border-radius: 12px;
+  box-shadow: 
+    0 10px 25px rgba(0, 0, 0, 0.4),
+    inset 0 2px 8px rgba(255, 255, 255, 0.2);
+  transform-style: preserve-3d;
+}
+
+/* 3D Volumetric D-Cell Battery Cylinder */
+.battery-3d {
+  position: absolute;
+  left: 30px;
+  bottom: 25px;
+  width: 90px;
+  height: 44px;
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 40%, #334155 70%, #1e293b 100%);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 6px;
+  box-shadow: 
+    0 8px 12px rgba(0,0,0,0.35),
+    inset 0 2px 4px rgba(255,255,255,0.25);
+  transform: translateZ(10px);
+  transform-style: preserve-3d;
+}
+
+.battery-label {
+  position: absolute;
+  inset: 2px 20px;
+  background: linear-gradient(180deg, #f59e0b 0%, #b45309 100%);
+  color: #fff;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+  box-shadow: inset 0 1px 3px rgba(255,255,255,0.3);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+
+.battery-label::before {
+  content: "1.5V D-CELL";
+}
+
+.battery-cap-plus {
+  position: absolute;
+  right: -8px;
+  top: 13px;
+  width: 8px;
+  height: 18px;
+  background: linear-gradient(180deg, #d97706, #fca5a5 50%, #78350f);
+  border-radius: 0 3px 3px 0;
+  box-shadow: 2px 2px 4px rgba(0,0,0,0.25);
+}
+
+.battery-cap-minus {
+  position: absolute;
+  left: -4px;
+  top: 8px;
+  width: 4px;
+  height: 28px;
+  background: linear-gradient(180deg, #94a3b8, #cbd5e1 50%, #475569);
+  border-radius: 2px 0 0 2px;
+}
+
+/* Incandescent Light Bulb Assembly */
+.bulb-assembly-3d {
+  position: absolute;
+  right: 40px;
+  top: 25px;
+  width: 70px;
+  height: 70px;
+  transform-style: preserve-3d;
+}
+
+.bulb-base-socket-3d {
+  position: absolute;
+  left: 17px;
+  bottom: 0;
+  width: 36px;
+  height: 20px;
+  background: linear-gradient(90deg, #475569, #94a3b8 50%, #334155);
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+  box-shadow: inset 0 2px 4px rgba(255,255,255,0.3), 0 4px 6px rgba(0,0,0,0.3);
+}
+
+.bulb-screw-threads {
+  position: absolute;
+  left: 21px;
+  bottom: 18px;
+  width: 28px;
+  height: 12px;
+  background: repeating-linear-gradient(180deg, #b45309, #d97706 4px, #78350f 8px);
+  border-radius: 2px 2px 0 0;
+}
+
+.bulb-glass-3d {
+  position: absolute;
+  left: 13px;
+  bottom: 28px;
+  width: 44px;
+  height: 44px;
+  background: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.03) 100%);
+  border: 1.5px solid rgba(255, 255, 255, 0.38);
+  border-radius: 50%;
+  box-shadow: 
+    inset -3px -3px 8px rgba(255,255,255,0.25),
+    0 5px 12px rgba(0,0,0,0.15);
+  transform-style: preserve-3d;
+  transition: all 0.3s cubic-bezier(.16,1,.3,1);
+}
+
+.bulb-filament-3d {
+  position: absolute;
+  left: 17px;
+  bottom: 12px;
+  width: 10px;
+  height: 12px;
+  border: 1.2px solid #64748b;
+  border-bottom: none;
+  border-radius: 5px 5px 0 0;
+  opacity: 0.85;
+  transition: all 0.3s;
+}
+
+/* Emissive Glowing States when Bulb is Lit */
+.bulb-glow {
+  background: radial-gradient(circle at 50% 50%, rgba(253, 224, 71, 0.85) 0%, rgba(234, 179, 8, 0.45) 45%, rgba(253, 224, 71, 0.12) 75%, transparent 100%);
+  border: 1.8px solid rgba(254, 240, 138, 0.95);
+  box-shadow: 
+    0 0 35px rgba(234, 179, 8, 0.85),
+    inset -3px -3px 12px rgba(255,255,255,0.6);
+  animation: bulbPulse 1.5s infinite alternate;
+}
+
+.bulb-glow .bulb-filament-3d {
+  border-color: #fef08a;
+  box-shadow: 0 0 10px #eab308;
+  filter: drop-shadow(0 0 4px #fef08a);
+  opacity: 1;
+}
+
+@keyframes bulbPulse {
+  0% { transform: scale(1); opacity: 0.95; }
+  100% { transform: scale(1.03); opacity: 1; }
+}
+
+/* Glowing Filament and Sparkles */
+.sparkle-particle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #fef08a;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #eab308;
+  animation: sparkleFly 1.2s infinite ease-out;
+  pointer-events: none;
+}
+
+@keyframes sparkleFly {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; }
+}
+
+/* Volumetric Knife Switch Assembly */
+.switch-assembly-3d {
+  position: absolute;
+  left: 30px;
+  top: 25px;
+  width: 80px;
+  height: 60px;
+  transform-style: preserve-3d;
+}
+
+.switch-base-3d {
+  position: absolute;
+  inset: 5px;
+  background: linear-gradient(135deg, #1e293b, #0f172a);
+  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: inset 0 1px 3px rgba(255,255,255,0.2), 0 4px 6px rgba(0,0,0,0.3);
+}
+
+.switch-terminals {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: linear-gradient(180deg, #d97706, #78350f);
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+}
+
+.switch-term-a { left: 15px; top: 25px; }
+.switch-term-b { right: 15px; top: 25px; }
+
+.switch-blade-3d {
+  position: absolute;
+  left: 20px;
+  top: 28px;
+  width: 44px;
+  height: 6px;
+  background: linear-gradient(90deg, #b45309, #f59e0b, #78350f);
+  border-radius: 3px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  transform-origin: left center;
+  transition: transform 0.4s cubic-bezier(.16,1,.3,1);
+  cursor: pointer;
+}
+
+.switch-blade-3d.closed {
+  transform: rotate(0deg);
+}
+
+.switch-blade-3d.open {
+  transform: rotate(-45deg);
+}
+
+.switch-blade-3d::after {
+  content: '';
+  position: absolute;
+  right: -3px;
+  top: -3px;
+  width: 12px;
+  height: 12px;
+  background: #dc2626; /* Red handle knob */
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+}
+
+/* Board Gap & Alligator Clips */
+.circuit-gap-3d {
+  position: absolute;
+  left: 125px;
+  top: 85px;
+  width: 70px;
+  height: 50px;
+  transform-style: preserve-3d;
+}
+
+.alligator-clip-3d {
+  position: absolute;
+  width: 24px;
+  height: 10px;
+  background: linear-gradient(180deg, #64748b, #475569);
+  border: 0.8px solid #1e293b;
+  border-radius: 2px;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.35);
+  transform-style: preserve-3d;
+}
+
+.alligator-clip-3d.clip-left {
+  left: 0;
+  top: 20px;
+  transform: rotate(15deg);
+}
+
+.alligator-clip-3d.clip-right {
+  right: 0;
+  top: 20px;
+  transform: rotate(-15deg);
+}
+
+.alligator-clip-3d::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  background: linear-gradient(90deg, #94a3b8 20%, transparent);
+}
+
+/* Copper leads drawing the wiring paths */
+.circuit-wire-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Volumetric Test Materials Block inside slot gap */
+.slotted-material-block-3d {
+  position: absolute;
+  left: 144px;
+  top: 96px;
+  width: 32px;
+  height: 18px;
+  transform: translateZ(12px) rotateX(8deg);
+  transform-style: preserve-3d;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+  transition: all 0.5s cubic-bezier(.16,1,.3,1);
+  animation: hoverMaterial 2s infinite alternate ease-in-out;
+}
+
+@keyframes hoverMaterial {
+  0% { transform: translateZ(12px) rotateX(8deg) translateY(0); }
+  100% { transform: translateZ(12px) rotateX(8deg) translateY(-2px); }
+}
+
+/* Specific Material Block Texturing and Detailing */
+.slotted-material-block-3d.block-pin {
+  background: linear-gradient(135deg, #cbd5e1, #64748b);
+  border: 1px solid #475569;
+  border-radius: 12px; /* curved safety pin loop look */
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+.slotted-material-block-3d.block-copper {
+  background: linear-gradient(135deg, #b45309, #ea580c);
+  border: 1px solid #7c2d12;
+  border-radius: 4px;
+}
+
+.slotted-material-block-3d.block-key {
+  background: linear-gradient(135deg, #475569, #1e293b);
+  border: 1px solid #0f172a;
+  border-radius: 2px 8px 8px 2px;
+}
+
+.slotted-material-block-3d.block-eraser {
+  background: linear-gradient(135deg, #fda4af, #f43f5e);
+  border: 1px solid #be123c;
+  border-radius: 3px;
+}
+
+.slotted-material-block-3d.block-ruler {
+  background: linear-gradient(135deg, rgba(147, 197, 253, 0.4), rgba(59, 130, 246, 0.15));
+  border: 1.2px solid rgba(255,255,255,0.4);
+  border-radius: 1px;
+}
+
+.slotted-material-block-3d.block-slider {
+  background: linear-gradient(120deg, rgba(255,255,255,0.5), rgba(255,255,255,0.1));
+  border: 1.2px solid rgba(255,255,255,0.45);
+  border-radius: 1px;
+}
+
+/* Pine-wood cabinet tray / locker shelf to host the materials next to board */
+.circuit-inventory-tray {
+  background: linear-gradient(180deg, #fef08a 0%, #fef3c7 100%);
+  border: 2px solid #ca8a04;
+  border-radius: 12px;
+  padding: 14px 18px;
+  box-shadow: 0 6px 15px rgba(0,0,0,0.06);
+}
+
+.circuit-tray-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+}
+
+.circuit-tray-slot {
+  background: #ffffff;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 8px;
+  height: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.circuit-tray-slot:hover {
+  background: #f1f5f9;
+  border-color: #64748b;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+
+.circuit-tray-slot.active {
+  background: #f0fdf4;
+  border-color: #22c55e;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.15);
+}
+
+.circuit-tray-slot-emoji {
+  font-size: 24px;
+  margin-bottom: 2px;
+}
+
+.circuit-tray-slot-name {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #334155;
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* Locked switch styling */
+.switch-lock-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(1.5px);
+  z-index: 10;
+  cursor: not-allowed;
+}
+
+.switch-lock-icon {
+  animation: bounceLock 1s infinite alternate;
+}
+
+@keyframes bounceLock {
+  from { transform: translateY(0); }
+  to { transform: translateY(-3px); }
+}
+
+
