@@ -1,4 +1,9 @@
 /* ── Completion celebration + auto-generated lab report ── */
+import React from "react";
+import { C } from "./tokens.js";
+import { Ic, Btn, useReveal } from "./ui.jsx";
+import { SUBSTANCES, TYPE_META, CIRCUIT_MATERIALS } from "./data.js";
+import { dipResult } from "./lab.jsx";
 const { useState: rUS, useEffect: rUE } = React;
 
 function Report({ data, student, onHome, onRetry }) {
@@ -131,8 +136,17 @@ function Report({ data, student, onHome, onRetry }) {
               value={data.experimentId === "circuit"
                 ? "It is scientifically concluded that metallic materials (safety pin, copper wire, iron key) containing a high concentration of free valence electrons close the electrical loop to allow current flow, turning the light bulb on. These are classified as electrical conductors. Non-metallic polymers and silicates (rubber eraser, plastic ruler, glass slide) possess tightly bound covalent valence electrons that block current flow, leaving the bulb dark. These are classified as insulators."
                 : "It is chemically concluded that liquids causing blue litmus paper to turn red are acidic (lemon juice, vinegar) due to hydrogen ions. Solutions causing red litmus to turn blue are basic (baking soda, soap solution) due to hydroxide ions. Distilled water and salt water are neutral, showing no reaction. Litmus indicators accurately determine nature."
-              } 
+              }
             />
+
+            {data.aiFeedback && (
+              <div style={{ background: C.violetPale, border: `1px solid ${C.violet}22`, borderRadius: 10, padding: "14px 16px" }}>
+                <span className="mono" style={{ fontSize: 9.5, fontWeight: 700, color: C.violet, letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                  <Ic n="spark" s={13} c={C.violet} sw={2} /> SPARK'S FEEDBACK · GEMINI
+                </span>
+                <p style={{ fontSize: 13.5, color: C.ink70, lineHeight: 1.55, fontWeight: 500 }}>{data.aiFeedback}</p>
+              </div>
+            )}
           </div>
 
           <div style={{ display: "flex", gap: 10, marginTop: 28, flexWrap: "wrap" }}>
@@ -180,4 +194,4 @@ function BadgeMedal({ perfect }) {
   );
 }
 
-Object.assign(window, { Report });
+export { Report };

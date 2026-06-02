@@ -1,7 +1,12 @@
 /* ── Spark: the AI lab instructor side panel ── */
+import React from "react";
+import { C } from "./tokens.js";
+import { Ic, SparkAvatar } from "./ui.jsx";
+import { askSpark } from "./api.js";
 const { useState: spUS, useEffect: spUE, useRef: spUR } = React;
 
-/* Canned but contextual knowledge base for the ask-Spark feature */
+/* Canned fallback knowledge base — used only when the Gemini backend is
+   unreachable, so the UI keeps working offline / without a key. */
 const SPARK_QA = [
   { k: ["litmus", "paper", "strip"], a: "Litmus is a natural dye made from lichens. It's an indicator — it changes colour to tell us if something is an acid or a base. Blue litmus turns red in acid; red litmus turns blue in a base." },
   { k: ["acid", "sour"], a: "Acids taste sour (like lemon!) and turn blue litmus red. Their pH is below 7. Never taste lab chemicals though — that's what indicators are for! 🍋" },
@@ -18,18 +23,34 @@ function sparkAnswer(q) {
   return hit ? hit.a : "Great question! Keep testing the liquids with litmus paper — every colour change is a clue. Acids turn blue litmus red, bases turn red litmus blue, and neutral liquids don't change it at all.";
 }
 
-function SparkPanel({ messages, onAsk, mood }) {
+/* Strict match: returns a confident cached answer, or null if none.
+   Used to answer common questions for FREE (no Gemini call); only genuinely
+   novel questions fall through to the paid text API. */
+function sparkAnswerStrict(q) {
+  const low = q.toLowerCase();
+  const idx = SPARK_QA.findIndex((e) => e.k.some((w) => low.includes(w)));
+  return idx >= 0 ? { answer: SPARK_QA[idx].a, clipKey: `faq-${idx}` } : null;
+}
+
+function SparkPanel({ messages, onAsk, mood, experiment, labState }) {
   const scrollRef = spUR(null);
   const [draft, setDraft] = spUS("");
   spUE(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messages]);
 
   const suggestions = ["What is litmus?", "Why did it change colour?", "Give me a hint"];
 
-  const submit = (text) => {
+  const submit = async (text) => {
     const t = (text ?? draft).trim();
     if (!t) return;
-    onAsk(t, sparkAnswer(t));
     setDraft("");
+    // Try the real Gemini-powered Spark; fall back to the canned answer offline.
+    let answer;
+    try {
+      answer = await askSpark({ question: t, experiment, labState });
+    } catch {
+      answer = sparkAnswer(t);
+    }
+    onAsk(t, answer || sparkAnswer(t));
   };
 
   return (
@@ -86,4 +107,4 @@ function SparkMsg({ m }) {
   );
 }
 
-Object.assign(window, { SparkPanel, sparkAnswer });
+export { SparkPanel, sparkAnswer, sparkAnswerStrict, SPARK_QA };

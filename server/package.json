@@ -1,0 +1,20 @@
+{
+  "name": "labspark-ai-server",
+  "version": "1.0.0",
+  "description": "LabSpark AI backend — Gemini-powered Spark tutor + grader (Cloud Run)",
+  "type": "module",
+  "main": "index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch --env-file=.env index.js"
+  },
+  "dependencies": {
+    "@google/genai": "^0.14.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "ws": "^8.18.0"
+  }
+}

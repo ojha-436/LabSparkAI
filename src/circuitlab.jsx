@@ -1,4 +1,10 @@
 /* ── The Immersive interactive 3D Simple Electric Circuit Laboratory ── */
+import React from "react";
+import { C } from "./tokens.js";
+import { CIRCUIT_MATERIALS } from "./data.js";
+import { Ic, SparkAvatar, VoiceWaveform } from "./ui.jsx";
+import { GuideBar } from "./lab.jsx";
+import { sparkReact, gradeLab } from "./api.js";
 const { useState: cUS, useEffect: cUE, useRef: cUR, useCallback: cUC } = React;
 
 function CircuitLab({ onExit, onComplete, addXp }) {
@@ -197,12 +203,18 @@ function CircuitLab({ onExit, onComplete, addXp }) {
 
     if (nextState) {
       const isConductor = currentMaterial.type === "conductor";
-      if (isConductor) {
-        addXp(10);
-        triggerVoiceResponse(`Wow! Look at that glowing incandescent bulb! The ${currentMaterial.name} is made of ${currentMaterial.material}, which contains a highly mobile sea of free valence electrons. You've formed a complete closed conducting path!`, 7500);
-      } else {
-        triggerVoiceResponse(`The light bulb remains completely dark. The ${currentMaterial.name} is made of ${currentMaterial.material}. Its valence electrons are tightly bound in chemical bonds, representing an electrical insulator!`, 7500);
-      }
+      const fallback = isConductor
+        ? `Wow! Look at that glowing incandescent bulb! The ${currentMaterial.name} is made of ${currentMaterial.material}, which contains a highly mobile sea of free valence electrons. You've formed a complete closed conducting path!`
+        : `The light bulb remains completely dark. The ${currentMaterial.name} is made of ${currentMaterial.material}. Its valence electrons are tightly bound in chemical bonds, representing an electrical insulator!`;
+      if (isConductor) addXp(10);
+      // Real Spark: ask Gemini to react to closing the circuit on this material.
+      sparkReact({
+        experiment: "Class 8 Physics — Simple Electric Circuit (conductors & insulators)",
+        event: { action: "close-switch", material: currentMaterial.name, madeOf: currentMaterial.material, bulbGlows: isConductor },
+        labState: { type: currentMaterial.type },
+      })
+        .then((aiText) => triggerVoiceResponse(aiText || fallback, 7500))
+        .catch(() => triggerVoiceResponse(fallback, 7500));
     } else {
       triggerVoiceResponse("Knife switch opened. The circuit loop is broken, stopping all current flow.", 3500);
     }
@@ -229,22 +241,38 @@ function CircuitLab({ onExit, onComplete, addXp }) {
     });
 
     triggerVoiceResponse(`Sandbox operations finalized! You scored ${correct} of ${CIRCUIT_MATERIALS.length} correct verdicts on CBSE Electrical Conductivity. Compiling transcript certification.`, 6000);
-    
-    setTimeout(() => {
+
+    const observations = CIRCUIT_MATERIALS.map((m) => ({
+      name: m.name,
+      madeOf: m.material,
+      correctType: m.type,
+      studentVerdict: results[m.id].verdict,
+    }));
+
+    const minDelay = new Promise((r) => setTimeout(r, 4500));
+    const feedback = gradeLab({
+      experiment: "Class 8 Physics — Simple Electric Circuit (conductors & insulators)",
+      observations,
+    })
+      .then((g) => g.feedback)
+      .catch(() => null);
+
+    Promise.all([feedback, minDelay]).then(([aiFeedback]) => {
       onComplete({
         results: Object.fromEntries(CIRCUIT_MATERIALS.map((m) => [
           m.id,
-          { 
-            dipped: results[m.id].dipped, 
+          {
+            dipped: results[m.id].dipped,
             verdict: results[m.id].verdict === m.type,
-            switchClosed: switchClosed
-          }
+            switchClosed: switchClosed,
+          },
         ])),
         correct: correct,
         total: CIRCUIT_MATERIALS.length,
-        xp: correct * 15 + 90
+        xp: correct * 15 + 90,
+        aiFeedback,
       });
-    }, 4500);
+    });
   };
 
   // Guide message configurations
@@ -687,4 +715,4 @@ function CircuitLab({ onExit, onComplete, addXp }) {
   );
 }
 
-Object.assign(window, { CircuitLab });
+export { CircuitLab };

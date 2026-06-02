@@ -32,6 +32,8 @@ const C = {
   lineSoft: "#f1f5f9",
   lineDark: "#334155",
   lineInk: "rgba(255, 255, 255, 0.08)",
+  slate400: "#94a3b8",
+  slate500: "#64748b",
 };
 
 /* litmus / indicator science colors */
@@ -46,6 +48,4 @@ const SCI = {
 // Kept empty since index.css handles all base stylesheet rules directly
 const GLOBAL_STYLES = "";
 
-window.C = C;
-window.SCI = SCI;
-window.GLOBAL_STYLES = GLOBAL_STYLES;
+export { C, SCI, GLOBAL_STYLES };

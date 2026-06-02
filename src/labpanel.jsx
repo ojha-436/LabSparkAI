@@ -1,4 +1,7 @@
 /* ── Observation table, verdict controls, intro overlay ── */
+import React from "react";
+import { C, SCI } from "./tokens.js";
+import { Ic, Btn, SparkAvatar, Chip } from "./ui.jsx";
 
 function ResultsTable({ activeSubstances, results, graded, onVerdict }) {
   const anyTested = activeSubstances.some((s) => results[s.id].blue || results[s.id].red);
@@ -164,4 +167,4 @@ function IntroOverlay({ onStart }) {
   );
 }
 
-Object.assign(window, { ResultsTable, IntroOverlay });
+export { ResultsTable, IntroOverlay };

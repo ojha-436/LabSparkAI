@@ -1,5 +1,15 @@
 /* ── LandingPage: Modular CSS-Class-Based Enterprise Landing Page ── */
+import React from "react";
+import { C } from "./tokens.js";
+import { Ic, Btn, Chip, SparkAvatar, VoiceWaveform, useReveal } from "./ui.jsx";
 const { useState: laUS, useEffect: laUE } = React;
+
+/* ── Creator details — EDIT to your real info. Photo: place at public/creator.jpg ── */
+const CREATOR = {
+  name: "Prince Kumar",
+  role: "Founder & Developer · LabSpark AI",
+  tagline: "Building AI-first, interactive science learning for every student.",
+};
 
 function LandingPage({ onEnterSandbox }) {
   const ref = useReveal();
@@ -66,12 +76,16 @@ function LandingPage({ onEnterSandbox }) {
 
       {/* Hero Section */}
       <section className="blueprint-grid" style={{ padding: "80px 24px 60px", position: "relative", overflow: "hidden", borderBottom: `1px solid ${C.line}` }}>
-        <div style={{ position: "absolute", top: "-10%", left: "40%", width: 500, height: 500, borderRadius: "50%", background: `radial-gradient(circle, ${C.emPale} 0%, transparent 70%)`, opacity: 0.7, pointerEvents: "none" }} />
-        <div style={{ position: "absolute", bottom: "-20%", left: "-10%", width: 450, height: 450, borderRadius: "50%", background: `radial-gradient(circle, ${C.violetPale} 0%, transparent 70%)`, opacity: 0.5, pointerEvents: "none" }} />
+        <div style={{ position: "absolute", top: "-12%", left: "38%", width: 520, height: 520, borderRadius: "50%", background: `radial-gradient(circle, ${C.emPale} 0%, transparent 70%)`, opacity: 0.75, pointerEvents: "none", animation: "auroraFloat 16s ease-in-out infinite", filter: "blur(8px)" }} />
+        <div style={{ position: "absolute", bottom: "-22%", left: "-12%", width: 460, height: 460, borderRadius: "50%", background: `radial-gradient(circle, ${C.violetPale} 0%, transparent 70%)`, opacity: 0.55, pointerEvents: "none", animation: "auroraFloat2 19s ease-in-out infinite", filter: "blur(8px)" }} />
+        <div style={{ position: "absolute", top: "10%", right: "-8%", width: 380, height: 380, borderRadius: "50%", background: `radial-gradient(circle, ${C.skyPale} 0%, transparent 70%)`, opacity: 0.5, pointerEvents: "none", animation: "auroraFloat 22s ease-in-out infinite", filter: "blur(8px)" }} />
 
         <div style={{ maxWidth: 1000, margin: "0 auto", textAlign: "center", position: "relative", zIndex: 10 }}>
-          <div className="reveal r1" style={{ display: "inline-flex", marginBottom: 16 }}>
-            <Chip bg={C.violetPale} c={C.violet} icon="spark">GEMINI XPRIZE HACKATHON MVP</Chip>
+          <div className="reveal r1" style={{ display: "inline-flex", marginBottom: 18 }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 9, padding: "8px 18px", borderRadius: 100, background: "rgba(255,255,255,0.7)", backdropFilter: "blur(10px)", border: `1px solid ${C.line}`, fontSize: 12.5, fontWeight: 700, color: C.ink70, boxShadow: "0 6px 20px rgba(15,23,42,0.06)" }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: C.lime, boxShadow: `0 0 0 4px ${C.emPale}`, animation: "pulse 2s infinite" }} />
+              AI-Powered Virtual Labs · CBSE / NCERT Class 6–10
+            </span>
           </div>
 
           <h1 className="reveal r2" style={{ fontSize: "clamp(34px, 5.2vw, 56px)", fontWeight: 800, color: C.ink, letterSpacing: "-0.03em", lineHeight: 1.15 }}>
@@ -92,10 +106,18 @@ function LandingPage({ onEnterSandbox }) {
             </a>
           </div>
 
-          <div className="reveal r5" style={{ display: "flex", justifyContent: "center", gap: 24, padding: "20px 0" }}>
-            <FloatingAsset icon="beaker" name="Glassware Rack" delay="0s" color={C.emBright} />
-            <FloatingAsset icon="bolt" name="Circuit Nodes" delay="1.5s" color={C.goldBright} />
-            <FloatingAsset icon="atom" name="Chemical Reactions" delay="3s" color={C.violet} />
+          <div className="reveal r5" style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", marginTop: 10 }}>
+            {[
+              { n: "6–10", l: "NCERT Classes" },
+              { n: "AI", l: "Socratic Tutor" },
+              { n: "3D", l: "Interactive Labs" },
+              { n: "24/7", l: "Learn Anytime" },
+            ].map((s, i) => (
+              <div key={i} style={{ padding: "0 30px", borderLeft: i ? `1px solid ${C.line}` : "none", textAlign: "center" }}>
+                <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em", background: `linear-gradient(90deg, ${C.em}, ${C.violet})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{s.n}</div>
+                <div style={{ fontSize: 12, color: C.ink50, fontWeight: 600, marginTop: 3 }}>{s.l}</div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -193,7 +215,6 @@ function LandingPage({ onEnterSandbox }) {
                 onClick={() => setActiveTab(t.id)} 
                 className="press" 
                 style={{
-                  border: "none",
                   padding: "9px 18px",
                   borderRadius: 8,
                   fontSize: 13,
@@ -236,11 +257,31 @@ function LandingPage({ onEnterSandbox }) {
             </span>
           </div>
           <p style={{ fontSize: 12.5, maxWidth: 540, lineHeight: 1.6 }}>
-            LabSpark AI is built as a state-of-the-art virtual science laboratory for CBSE K-12 NCERT science practical training, utilizing Vertex AI prompt caching and the Gemini Multimodal Live API.
+            LabSpark AI is built as a state-of-the-art virtual science laboratory for CBSE K-12 NCERT science practical training.
           </p>
+
+          {/* Creator section */}
+          <div style={{ width: "100%", maxWidth: 520, margin: "10px 0", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: "20px 24px", display: "flex", alignItems: "center", gap: 18 }}>
+            <img
+              src="/creator.jpg"
+              alt={CREATOR.name}
+              onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.nextSibling.style.display = "flex"; }}
+              style={{ width: 72, height: 72, borderRadius: "50%", objectFit: "cover", border: `3px solid ${C.emBright}`, flexShrink: 0 }}
+            />
+            <div style={{ width: 72, height: 72, borderRadius: "50%", display: "none", alignItems: "center", justifyContent: "center", background: `linear-gradient(135deg, ${C.violet}, ${C.em})`, color: "#fff", fontWeight: 800, fontSize: 26, border: `3px solid ${C.emBright}`, flexShrink: 0 }}>
+              {CREATOR.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
+            </div>
+            <div style={{ textAlign: "left" }}>
+              <div className="mono" style={{ fontSize: 10, color: C.emBright, fontWeight: 700, letterSpacing: "0.1em" }}>BUILT BY</div>
+              <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", marginTop: 2 }}>{CREATOR.name}</div>
+              <div style={{ fontSize: 12.5, color: "#cbd5e1", marginTop: 2 }}>{CREATOR.role}</div>
+              {CREATOR.tagline && <div style={{ fontSize: 11.5, color: C.ink30, marginTop: 6, lineHeight: 1.5 }}>{CREATOR.tagline}</div>}
+            </div>
+          </div>
+
           <div style={{ width: "100%", height: 1, background: "rgba(255,255,255,0.06)", margin: "8px 0" }} />
           <div style={{ fontSize: 11.5, color: C.ink30 }}>
-            &copy; 2026 LabSpark AI. GCP-Native Virtual Education Sandbox. All rights reserved.
+            &copy; 2026 LabSpark AI · Created by {CREATOR.name}. All rights reserved.
           </div>
         </div>
       </footer>
@@ -425,4 +466,4 @@ function TabB2b() {
   );
 }
 
-Object.assign(window, { LandingPage });
+export { LandingPage };

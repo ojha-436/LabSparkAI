@@ -1,4 +1,10 @@
 /* ── The Immersive interactive 3D Acids & Bases Laboratory Desk ── */
+import React from "react";
+import { C } from "./tokens.js";
+import { SUBSTANCES } from "./data.js";
+import { Ic, Btn, SparkAvatar, VoiceWaveform } from "./ui.jsx";
+import { ResultsTable, IntroOverlay } from "./labpanel.jsx";
+import { sparkReact, gradeLab } from "./api.js";
 const { useState: lUS, useEffect: lUE, useRef: lUR, useCallback: lUC } = React;
 
 const STRIP_BLUE = "#2563eb";
@@ -20,7 +26,8 @@ function Lab({ onExit, onComplete, addXp }) {
   
   // Immersive 3D states
   const [activeSub, setActiveSub] = lUS(null); // Selected test tube id
-  const [isDipping, setIsDipping] = lUS(false); // Animate litmus strip dipping
+  const [isDipping, setIsDipping] = lUS(false); // Guard: prevents re-triggering during a dip
+  const [dipAnimated, setDipAnimated] = lUS(false); // Controls .dipped CSS class separately so transition fires
   const [dippedStrip, setDippedStrip] = lUS(null); // 'blue' | 'red'
   
   // Socratic AI voice questioning states
@@ -201,34 +208,46 @@ function Lab({ onExit, onComplete, addXp }) {
     if (!sub) return;
 
     setIsDipping(true);
-    setDippedStrip(strip);
+    setDippedStrip(strip);   // mount strip at top:-100px (no dipped class yet)
     setMood("thinking");
-    
+
+    // Delay adding .dipped class by one frame so the CSS transition has a "before" state to animate from
+    setTimeout(() => setDipAnimated(true), 60);
+
     triggerVoiceResponse(`Executing telemetry test... Dipping ${strip} litmus indicator into ${sub.name}...`, 1800);
 
     setTimeout(() => {
       const res = dipResult(strip, sub.type);
       const firstEver = !results[activeSub].blue && !results[activeSub].red;
-      
+
       setResults((r) => ({ ...r, [activeSub]: { ...r[activeSub], [strip]: res } }));
-      
-      // trigger spoken feedback from Spark
+
+      // Canned fallback used if the Gemini backend is unreachable.
       let spokenText = "";
       if (res.changed) {
         spokenText = `Aha! The ${strip} litmus turned ${strip === "blue" ? "red" : "blue"}! ${sub.name} is highly reactive, showing the presence of ${sub.type === "acid" ? "free hydrogen H+" : "hydroxyl OH-"} ions. Socratic chemistry at work! 🧪`;
       } else {
         spokenText = `Observation recorded: No colour change detected on the ${strip} litmus. ${sub.name} holds neutral properties (pH 7) or matches indicator boundaries. What verdict will you record?`;
       }
-      
-      triggerVoiceResponse(spokenText, 4500);
+
+      // Real Spark: ask Gemini for a contextual spoken reaction to this dip.
+      sparkReact({
+        experiment: "Class 7 Chemistry — Acids, Bases & Indicators (litmus)",
+        event: { action: "dip-litmus", strip, substance: sub.name, formula: sub.formula, colourChanged: res.changed },
+        labState: { substanceType: sub.type },
+      })
+        .then((aiText) => triggerVoiceResponse(aiText || spokenText, 4500))
+        .catch(() => triggerVoiceResponse(spokenText, 4500));
+
       if (firstEver) addXp(10);
     }, 1100);
 
-    // Retract paper strip
+    // Retract paper strip — extended to 5500ms so colour change is visible for ~4 seconds
+    setTimeout(() => setDipAnimated(false), 5500);
     setTimeout(() => {
       setIsDipping(false);
       setDippedStrip(null);
-    }, 2800);
+    }, 6300);
   };
 
   lUE(() => {
@@ -252,10 +271,35 @@ function Lab({ onExit, onComplete, addXp }) {
     const xp = 30 + correct * 8;
     addXp(xp);
     setMood("celebrate");
-    
+
     triggerVoiceResponse(`Practical successfully graded! You accurately identified ${correct} out of ${activeSubstances.length} chemicals. Your CBSE Science Laboratory Transcript has been generated.`, 6000);
-    
-    setTimeout(() => onComplete({ results: Object.fromEntries(activeSubstances.map(s => [s.id, results[s.id]])), correct, total: activeSubstances.length, xp }), 3200);
+
+    const observations = activeSubstances.map((s) => ({
+      name: s.name,
+      formula: s.formula,
+      correctType: s.type,
+      studentVerdict: results[s.id].verdict,
+    }));
+
+    // Ask Gemini for personalised conceptual feedback; fall back to a generic note.
+    // Keep the original ~3.2s celebration beat regardless of network speed.
+    const minDelay = new Promise((r) => setTimeout(r, 3200));
+    const feedback = gradeLab({
+      experiment: "Class 7 Chemistry — Acids, Bases & Indicators (litmus)",
+      observations,
+    })
+      .then((g) => g.feedback)
+      .catch(() => null);
+
+    Promise.all([feedback, minDelay]).then(([aiFeedback]) => {
+      onComplete({
+        results: Object.fromEntries(activeSubstances.map((s) => [s.id, results[s.id]])),
+        correct,
+        total: activeSubstances.length,
+        xp,
+        aiFeedback,
+      });
+    });
   };
 
   const guide = !activeSub
@@ -499,8 +543,8 @@ function Lab({ onExit, onComplete, addXp }) {
 
                         {/* Dipping Litmus paper strip inside tube */}
                         {isSelected && dippedStrip && (
-                          <div 
-                            className={`litmus-paper-3d ${isDipping ? "dipped" : ""}`}
+                          <div
+                            className={`litmus-paper-3d ${dipAnimated ? "dipped" : ""}`}
                             style={{ 
                               background: dippedStrip === "blue" ? STRIP_BLUE : STRIP_RED,
                               borderBottom: r[dippedStrip] ? `15px solid ${r[dippedStrip].c}` : "none"
@@ -755,4 +799,4 @@ function shadeLiquid(hex) {
   return `#${rHex}${gHex}${bHex}`;
 }
 
-Object.assign(window, { Lab });
+export { Lab, GuideBar, dipResult, shadeLiquid };

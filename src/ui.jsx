@@ -1,4 +1,6 @@
 /* ── Reusable Enterprise UI Primitives ── */
+import React from "react";
+import { C } from "./tokens.js";
 const { useState: _uS, useEffect: _uE, useRef: _uR } = React;
 
 function Ic({ n, s = 18, c = "currentColor", sw = 1.7 }) {
@@ -170,4 +172,4 @@ function Chip({ children, c = C.ink70, bg, icon, style }) {
   );
 }
 
-Object.assign(window, { Ic, Btn, VoiceWaveform, useReveal, SparkAvatar, Chip });
+export { Ic, Btn, VoiceWaveform, useReveal, SparkAvatar, Chip };

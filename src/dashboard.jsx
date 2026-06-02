@@ -1,32 +1,39 @@
 /* ── Student Dashboard / Home ── */
+import React from "react";
+import { C } from "./tokens.js";
+import { Ic, Btn, Chip, SparkAvatar, useReveal } from "./ui.jsx";
+import { CATALOG } from "./data.js";
+import { Avatar } from "./profile.jsx";
+import firebase from "./firebaseInit.js";
 const { useState: dUS } = React;
 
-function Dashboard({ student, onOpen, onBackToLanding }) {
+const CLASS_ORDER = ["Class 6", "Class 7", "Class 8", "Class 9", "Class 10"];
+
+function Dashboard({ student, onOpen, onBackToLanding, onEditProfile, onOpenProgress, onOpenAchievements }) {
   const ref = useReveal();
   const featured = CATALOG[0];
   const lvlPct = (student.xp % 200) / 2;
-  const [currentTab, setCurrentTab] = dUS("all");
-
-  const filteredCatalog = currentTab === "all" 
-    ? CATALOG 
-    : CATALOG.filter(e => e.subject.toLowerCase() === currentTab);
+  const [openClass, setOpenClass] = dUS(null);
+  const completedIds = new Set((student.completions || []).map((c) => c.id));
 
   return (
     <div ref={ref} style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       {/* Navbar */}
-      <DashNav student={student} onBack={onBackToLanding} />
+      <DashNav student={student} onBack={onBackToLanding} onEditProfile={onEditProfile} />
 
       <div style={{ display: "flex", flex: 1, maxWidth: 1240, width: "100%", margin: "0 auto", padding: "0 24px" }}>
         
         {/* Sidebar Nav */}
         <aside style={{ width: 220, borderRight: `1px solid ${C.line}`, padding: "30px 16px 30px 0", display: "flex", flexDirection: "column", gap: 6 }}>
           {[
-            { id: "bench", l: "Virtual Workbench", ic: "home", active: true },
-            { id: "analytics", l: "Class Progress", ic: "chart" },
-            { id: "cert", l: "Achievements", ic: "trophy" }
+            { id: "bench", l: "Virtual Workbench", ic: "home", active: true, go: () => {} },
+            { id: "analytics", l: "Class Progress", ic: "chart", go: onOpenProgress },
+            { id: "cert", l: "Achievements", ic: "trophy", go: onOpenAchievements },
+            { id: "profile", l: "My Profile", ic: "shield", go: onEditProfile },
           ].map((m) => (
-            <button 
-              key={m.id} 
+            <button
+              key={m.id}
+              onClick={m.go}
               className="press"
               style={{
                 display: "flex",
@@ -80,12 +87,12 @@ function Dashboard({ student, onOpen, onBackToLanding }) {
           {/* Quick Metrics */}
           <div className="reveal r3" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, margin: "28px 0 40px" }}>
             {[
-              { ic: "flask", n: student.done, l: "Experiments Completed", c: C.emBright },
+              { ic: "flask", n: student.done, l: "Experiments Completed", c: C.emBright, go: onOpenProgress },
               { ic: "bolt", n: student.xp, l: "Total XP Accrued", c: C.gold },
-              { ic: "medal", n: student.badges, l: "Badges Unlocked", c: C.coral },
+              { ic: "medal", n: student.badges, l: "Badges Unlocked", c: C.coral, go: onOpenAchievements },
               { ic: "target", n: student.streak + " Days", l: "Consecutive Learning", c: C.violet },
             ].map((s, i) => (
-              <div key={i} className="lift-card" style={{ background: C.cream, borderRadius: 12, padding: "20px 22px" }}>
+              <div key={i} onClick={s.go} className="lift-card" style={{ background: C.cream, borderRadius: 12, padding: "20px 22px", cursor: s.go ? "pointer" : "default" }}>
                 <div style={{ width: 36, height: 36, borderRadius: 8, background: s.c + "12", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
                   <Ic n={s.ic} s={18} c={s.c} sw={2.2} />
                 </div>
@@ -95,53 +102,91 @@ function Dashboard({ student, onOpen, onBackToLanding }) {
             ))}
           </div>
 
-          {/* Catalog Selection Headers */}
+          {/* Catalog Header */}
           <div className="reveal r4" style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
             <div>
               <span className="mono" style={{ fontSize: 11, color: C.emBright, letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 700 }}>CURRICULUM DIRECTORY</span>
-              <h3 style={{ fontSize: 22, fontWeight: 700, color: C.ink, letterSpacing: "-0.02em", marginTop: 4 }}>CBSE NCERT Science Labs</h3>
+              <h3 style={{ fontSize: 22, fontWeight: 700, color: C.ink, letterSpacing: "-0.02em", marginTop: 4 }}>
+                {openClass ? `${openClass} · Science Labs` : "Choose your class"}
+              </h3>
             </div>
-            
-            {/* Filter Chips */}
-            <div style={{ display: "flex", gap: 6, background: C.paperWarm, padding: 3, borderRadius: 8 }}>
-              {["all", "chemistry", "physics"].map((t) => (
-                <button 
-                  key={t} 
-                  onClick={() => setCurrentTab(t)}
-                  className="press"
-                  style={{
-                    border: "none",
-                    cursor: "pointer",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    padding: "6px 14px",
-                    borderRadius: 6,
-                    textTransform: "capitalize",
-                    transition: "all 0.2s",
-                    background: currentTab === t ? C.cream : "transparent",
-                    color: currentTab === t ? C.ink : C.ink50,
-                    boxShadow: currentTab === t ? "0 2px 6px rgba(0,0,0,0.04)" : "none"
-                  }}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
+            {openClass && (
+              <button onClick={() => setOpenClass(null)} className="press btn btn-light" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <Ic n="back" s={14} c={C.ink50} /> All classes
+              </button>
+            )}
           </div>
 
-          {/* Catalog Grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }}>
-            {filteredCatalog.map((e, i) => (
-              <ExpCard key={e.id} e={e} onOpen={onOpen} className={`reveal r${(i % 3) + 4}`} />
-            ))}
-          </div>
+          {!openClass ? (
+            /* Step 1 — class cards (Class 6–10) */
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px,1fr))", gap: 18 }}>
+              {CLASS_ORDER.map((cls, i) => {
+                const labs = CATALOG.filter((e) => e.cls === cls);
+                const doneN = labs.filter((e) => completedIds.has(e.id)).length;
+                const subjects = [...new Set(labs.map((e) => e.subject))];
+                const accent = [C.emBright, C.violet, C.gold, C.sky, C.coral][i % 5];
+                return (
+                  <div key={cls} onClick={() => setOpenClass(cls)} className={`lift-card reveal r${(i % 3) + 4}`}
+                    style={{ cursor: "pointer", background: C.cream, borderRadius: 14, overflow: "hidden", border: `1px solid ${C.line}` }}>
+                    <div style={{ height: 84, background: `linear-gradient(135deg, ${accent}, ${accent}aa)`, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+                      <span style={{ fontSize: 30, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em" }}>{cls.replace("Class ", "")}</span>
+                      <span style={{ position: "absolute", top: 10, left: 12, fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.85)", letterSpacing: "0.08em" }}>CLASS</span>
+                    </div>
+                    <div style={{ padding: "14px 16px" }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink }}>{labs.length} lab{labs.length !== 1 ? "s" : ""}</div>
+                      <div style={{ fontSize: 11.5, color: C.ink50, marginTop: 2 }}>{subjects.join(" · ")}</div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, borderTop: `1px solid ${C.lineSoft}`, paddingTop: 10 }}>
+                        <span style={{ fontSize: 11, color: doneN ? C.emDeep : C.ink30, fontWeight: 600 }}>{doneN} completed</span>
+                        <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 700, color: accent }}>Open <Ic n="arrow" s={12} c={accent} sw={2.2} /></span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            /* Step 2 — that class's labs grouped by subject */
+            <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+              {[...new Set(CATALOG.filter((e) => e.cls === openClass).map((e) => e.subject))].map((subject) => {
+                const labs = CATALOG.filter((e) => e.cls === openClass && e.subject === subject);
+                const sc = subject === "Physics" ? C.violet : C.emBright;
+                return (
+                  <div key={subject}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 14 }}>
+                      <div style={{ width: 30, height: 30, borderRadius: 8, background: sc + "16", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <Ic n={subject === "Physics" ? "bolt" : "flask"} s={16} c={sc} sw={2} />
+                      </div>
+                      <h4 style={{ fontSize: 16, fontWeight: 700, color: C.ink }}>{subject}</h4>
+                      <span className="mono" style={{ fontSize: 11, color: C.ink30 }}>{labs.length} lab{labs.length !== 1 ? "s" : ""}</span>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px,1fr))", gap: 18 }}>
+                      {labs.map((e) => <ExpCard key={e.id} e={e} onOpen={onOpen} className="" />)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </main>
       </div>
     </div>
   );
 }
 
-function DashNav({ student, onBack }) {
+function DashNav({ student, onBack, onEditProfile }) {
+  const [showProfile, setShowProfile] = React.useState(false);
+  const initials = student.name ? student.name.split(" ").map((w) => w[0]).join("").toUpperCase() : "ST";
+
+  const handleLogout = () => {
+    firebase.auth().signOut()
+      .then(() => {
+        // Redirect logic is automatically handled by the onAuthStateChanged hook in app.jsx!
+      })
+      .catch((err) => {
+        console.error("Signout error:", err);
+      });
+  };
+
   return (
     <nav style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", borderBottom: `1px solid ${C.line}` }}>
       <div style={{ maxWidth: 1240, margin: "0 auto", padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -173,13 +218,125 @@ function DashNav({ student, onBack }) {
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, position: "relative" }}>
           <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 700, color: C.gold, background: C.goldPale, padding: "5px 12px", borderRadius: 6 }}>
             <Ic n="bolt" s={14} c={C.gold} sw={2.2} />{student.xp} XP
           </span>
-          <div style={{ width: 34, height: 34, borderRadius: "50%", background: C.violet, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13.5 }}>
-            {student.name.split(" ").map((w) => w[0]).join("")}
+          
+          <div onClick={() => setShowProfile(!showProfile)} className="press" style={{ cursor: "pointer", borderRadius: "50%" }}>
+            <Avatar src={student.photoData} name={student.name} size={34} ring={false} />
           </div>
+
+          {showProfile && (
+            <div 
+              className="card-glass reveal r1" 
+              style={{
+                position: "absolute",
+                top: 44,
+                right: 0,
+                width: 320,
+                background: C.cream,
+                borderRadius: 16,
+                boxShadow: "0 10px 40px rgba(15,23,42,0.12)",
+                border: `1.5px solid ${C.line}`,
+                overflow: "hidden",
+                zIndex: 100,
+                textAlign: "left"
+              }}
+            >
+              <div style={{ background: C.inkDeep, color: "#fff", padding: "20px 24px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <Avatar src={student.photoData} name={student.name} size={44} />
+                  <div style={{ overflow: "hidden" }}>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: "#fff", whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden" }}>{student.name}</div>
+                    <div style={{ fontSize: 11, color: C.ink30, whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden" }}>{student.email}</div>
+                  </div>
+                </div>
+                
+                <div style={{ marginTop: 14, background: "rgba(255,255,255,0.06)", borderRadius: 8, padding: "8px 12px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div>
+                    <div style={{ fontSize: 10, color: C.ink30, textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.02em" }}>Current Tier</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.emBright }}>Science Spark Pass (Pro)</div>
+                  </div>
+                  <div style={{ background: C.emBright, color: "#fff", fontSize: 9.5, fontWeight: 800, padding: "2px 6px", borderRadius: 4 }}>ACTIVE</div>
+                </div>
+              </div>
+
+              <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ fontSize: 10, color: C.ink50, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", paddingLeft: 4, marginBottom: 2 }}>Profile Dashboard</div>
+
+                <div style={{ background: C.paperWarm, borderRadius: 10, padding: 12, border: `1px solid ${C.line}` }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <Ic n="trophy" s={14} c={C.em} />
+                    <span style={{ fontSize: 12.5, fontWeight: 700, color: C.ink }}>Academic Progress</span>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    <div style={{ background: C.cream, padding: "6px 10px", borderRadius: 6, border: `1px solid ${C.lineSoft}` }}>
+                      <div style={{ fontSize: 9, color: C.ink50 }}>XP Accrued</div>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: C.gold }} className="mono">{student.xp} XP</div>
+                    </div>
+                    <div style={{ background: C.cream, padding: "6px 10px", borderRadius: 6, border: `1px solid ${C.lineSoft}` }}>
+                      <div style={{ fontSize: 9, color: C.ink50 }}>Badges</div>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: C.coral }} className="mono">{student.badges} Unlocked</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ background: C.paperWarm, borderRadius: 10, padding: 12, border: `1px solid ${C.line}` }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <Ic n="chart" s={14} c={C.violet} />
+                    <span style={{ fontSize: 12.5, fontWeight: 700, color: C.ink }}>Billing & Subscriptions</span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11 }}>
+                      <span style={{ color: C.ink50 }}>Spark Pass B2C Tier:</span>
+                      <span style={{ fontWeight: 700, color: C.ink70 }}>$4.99 / Month</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11 }}>
+                      <span style={{ color: C.ink50 }}>Method:</span>
+                      <span style={{ fontWeight: 600, color: C.ink50 }} className="mono">Stripe Sandbox (**** 4242)</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11, borderTop: `1px dashed ${C.line}`, paddingTop: 6, marginTop: 2 }}>
+                      <span style={{ color: C.ink50 }}>Transaction Ledger:</span>
+                      <span style={{ fontWeight: 700, color: C.emDeep }}>1 Live Purchase</span>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => { setShowProfile(false); onEditProfile && onEditProfile(); }}
+                  className="press"
+                  style={{ width: "100%", padding: "10px 0", borderRadius: 10, fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, border: `1.5px solid ${C.line}`, background: C.cream, color: C.ink, cursor: "pointer" }}
+                >
+                  <Ic n="shield" s={13} c={C.em} /> Edit My Profile
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="press"
+                  style={{
+                    marginTop: 4,
+                    width: "100%",
+                    padding: "10px 0",
+                    borderRadius: 10,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    border: `1.5px solid ${C.coral}`,
+                    background: "transparent",
+                    color: C.coral,
+                    cursor: "pointer"
+                  }}
+                >
+                  <Ic n="lock" s={13} c={C.coral} />
+                  Sign Out of Account
+                </button>
+              </div>
+
+            </div>
+          )}
         </div>
 
       </div>
@@ -293,4 +450,4 @@ function ExpCard({ e, onOpen, className }) {
   );
 }
 
-Object.assign(window, { Dashboard });
+export { Dashboard };

@@ -1,4 +1,8 @@
 /* ── LoginPage: Premium Google & Email SaaS Authentication Screen ── */
+import React from "react";
+import { C } from "./tokens.js";
+import { Ic } from "./ui.jsx";
+import firebase from "./firebaseInit.js";
 const { useState: loUS } = React;
 
 function LoginPage({ onLogin, onBack }) {
@@ -22,27 +26,53 @@ function LoginPage({ onLogin, onBack }) {
       setError("Please enter a valid email address.");
       return;
     }
-    if (pass.length < 8) {
-      setError("Password must be at least 8 characters.");
+    if (pass.length < 6) {
+      setError("Password must be at least 6 characters.");
       return;
     }
 
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      const studentName = activeTab === "signup" ? name : "Aarav Sharma";
-      onLogin(studentName);
-    }, 1200);
+    if (activeTab === "signup") {
+      firebase.auth().createUserWithEmailAndPassword(email, pass)
+        .then((userCredential) => {
+          return userCredential.user.updateProfile({ displayName: name })
+            .then(() => {
+              setLoading(false);
+              onLogin(name);
+            });
+        })
+        .catch((err) => {
+          setLoading(false);
+          setError(err.message);
+        });
+    } else {
+      firebase.auth().signInWithEmailAndPassword(email, pass)
+        .then((userCredential) => {
+          setLoading(false);
+          onLogin(userCredential.user.displayName || userCredential.user.email);
+        })
+        .catch((err) => {
+          setLoading(false);
+          setError(err.message);
+        });
+    }
   };
 
   const handleGoogleSubmit = () => {
     setError("");
     setLoadingGoogle(true);
-    setTimeout(() => {
-      setLoadingGoogle(false);
-      onLogin("Aarav Sharma");
-    }, 1500);
+    const provider = new firebase.auth.GoogleAuthProvider();
+    firebase.auth().signInWithPopup(provider)
+      .then((result) => {
+        setLoadingGoogle(false);
+        onLogin(result.user.displayName || result.user.email);
+      })
+      .catch((err) => {
+        setLoadingGoogle(false);
+        setError(err.message);
+      });
   };
+
 
   return (
     <div className="grid-blueprint" style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
@@ -204,4 +234,4 @@ function LoginPage({ onLogin, onBack }) {
   );
 }
 
-Object.assign(window, { LoginPage });
+export { LoginPage };

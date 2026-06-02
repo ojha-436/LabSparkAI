@@ -1,4 +1,5 @@
 /* ── LabSpark data: experiment catalog + acid-base substance model ── */
+import { C, SCI } from "./tokens.js";
 
 /* Substances for the Acid–Base Indicators experiment.
    blue = what blue litmus becomes, red = what red litmus becomes,
@@ -258,6 +259,22 @@ const CATALOG = [
     diff: "Medium", mins: 13, xp: 110, c: C.emDeep, status: "soon", icon: "eye",
     blurb: "Bounce light off mirrors and measure the angle of reflection.",
     chapter: "Ch 16 · Light" },
+  { id: "force", name: "Newton's Laws & Force", cls: "Class 9", subject: "Physics",
+    diff: "Medium", mins: 14, xp: 120, c: C.sky, status: "soon", icon: "target",
+    blurb: "Measure force, friction and motion with springs and pulleys.",
+    chapter: "Ch 9 · Force & Laws of Motion" },
+  { id: "solutions", name: "Solutions & Concentration", cls: "Class 9", subject: "Chemistry",
+    diff: "Medium", mins: 12, xp: 110, c: C.emDeep, status: "soon", icon: "beaker",
+    blurb: "Prepare solutions and explore how concentration changes properties.",
+    chapter: "Ch 2 · Is Matter Around Us Pure" },
+  { id: "reactions", name: "Types of Chemical Reactions", cls: "Class 10", subject: "Chemistry",
+    diff: "Hard", mins: 15, xp: 140, c: C.coral, status: "soon", icon: "atom",
+    blurb: "Combination, decomposition, displacement and more reaction types.",
+    chapter: "Ch 1 · Chemical Reactions & Equations" },
+  { id: "lens", name: "Refraction through Lenses", cls: "Class 10", subject: "Physics",
+    diff: "Hard", mins: 15, xp: 140, c: C.violet, status: "soon", icon: "eye",
+    blurb: "Trace light rays through convex and concave lenses.",
+    chapter: "Ch 10 · Light – Reflection & Refraction" },
 ];
 
 const CIRCUIT_MATERIALS = [
@@ -377,8 +394,5 @@ const CIRCUIT_MATERIALS = [
   }
 ];
 
-window.SUBSTANCES = SUBSTANCES;
-window.TYPE_META = TYPE_META;
-window.CATALOG = CATALOG;
-window.CIRCUIT_MATERIALS = CIRCUIT_MATERIALS;
+export { SUBSTANCES, TYPE_META, CATALOG, CIRCUIT_MATERIALS };
 

@@ -26,3 +26,7 @@ node_modules/
 *.njsproj
 *.sln
 *.sw?
+
+# Tooling caches / generated
+.firebase/
+.playwright-mcp/

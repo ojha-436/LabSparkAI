@@ -140,6 +140,17 @@ h1, h2, h3, h4, h5, h6, .font-display {
   50% { transform: translateY(-5px) rotate(0.8deg); }
 }
 
+@keyframes auroraFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(40px, -30px) scale(1.08); }
+  66% { transform: translate(-30px, 20px) scale(0.96); }
+}
+
+@keyframes auroraFloat2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-40px, -25px) scale(1.1); }
+}
+
 @keyframes voicePulse {
   0%, 100% { transform: scaleY(0.25); }
   50% { transform: scaleY(1); }
@@ -744,7 +755,7 @@ h1, h2, h3, h4, h5, h6, .font-display {
   border-radius: 2px;
   top: -100px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-  transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: top 1.0s cubic-bezier(0.16, 1, 0.3, 1), background 0.6s ease, border-bottom-color 0.6s ease;
   z-index: 10;
 }
 
