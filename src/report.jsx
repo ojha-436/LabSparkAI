@@ -4,6 +4,7 @@ import { C } from "./tokens.js";
 import { Ic, Btn, useReveal } from "./ui.jsx";
 import { SUBSTANCES, TYPE_META, CIRCUIT_MATERIALS } from "./data.js";
 import { dipResult } from "./lab.jsx";
+import { GEN_LABS } from "./genlabdata.js";
 const { useState: rUS, useEffect: rUE } = React;
 
 function Report({ data, student, onHome, onRetry }) {
@@ -11,6 +12,9 @@ function Report({ data, student, onHome, onRetry }) {
   const { results, correct, total, xp } = data;
   const perfect = correct === total;
   const [confetti] = rUS(() => Array.from({ length: 28 }, (_, i) => ({ id: i, x: Math.random() * 100, d: 2 + Math.random() * 2.5, delay: Math.random() * 1.2, c: [C.emBright, C.gold, C.coral, C.violet, C.lime][i % 5], s: 6 + Math.random() * 8 })));
+
+  // Generic (data-driven) labs render a NCERT-styled certificate.
+  if (data.generic) return <GenericReport data={data} student={student} onHome={onHome} onRetry={onRetry} confetti={confetti} />;
 
   return (
     <div ref={ref} style={{ minHeight: "100vh", position: "relative", overflow: "hidden", padding: "60px 24px 80px" }} className="blueprint-grid">
@@ -188,6 +192,77 @@ function BadgeMedal({ perfect }) {
         <div style={{ width: 76, height: 76, borderRadius: "50%", background: C.inkDeep, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1 }}>
           <Ic n="star" s={24} c={C.goldBright} sw={1.8} />
           <span className="mono" style={{ fontSize: 8, color: C.goldBright, letterSpacing: "0.08em", fontWeight: 700 }}>{perfect ? "PERFECT" : "VERIFIED"}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* Certificate for the data-driven (NCERT) classification labs. */
+function GenericReport({ data, student, onHome, onRetry, confetti }) {
+  const ref = useReveal();
+  const spec = GEN_LABS[data.experimentId] || {};
+  const { correct, total, xp } = data;
+  const perfect = correct === total;
+  return (
+    <div ref={ref} className="blueprint-grid" style={{ minHeight: "100vh", padding: "60px 24px 80px", position: "relative", overflow: "hidden" }}>
+      {(confetti || []).map((c) => (
+        <span key={c.id} style={{ position: "fixed", top: -20, left: c.x + "vw", width: c.s, height: c.s, background: c.c, borderRadius: c.id % 2 ? "50%" : 2, animation: `confetti ${c.d}s ${c.delay}s ease-in forwards`, zIndex: 1 }} />
+      ))}
+      <style>{`@keyframes confetti{to{transform:translateY(105vh) rotate(540deg);opacity:0}}`}</style>
+      <div style={{ maxWidth: 800, margin: "0 auto", position: "relative", zIndex: 2 }}>
+        <div className="reveal r1" style={{ textAlign: "center", marginBottom: 34 }}>
+          <div style={{ display: "inline-block", animation: "sparkle 1.8s infinite", marginBottom: 14 }}><BadgeMedal perfect={perfect} /></div>
+          <h2 style={{ fontSize: "clamp(24px, 4vw, 34px)", fontWeight: 800, color: C.ink, letterSpacing: "-0.03em" }}>{perfect ? "Perfect Lab! 🏆" : "Lab Complete! 🎉"}</h2>
+          <p style={{ fontSize: 14, color: C.ink50, marginTop: 8 }}>You classified <b style={{ color: C.emBright }}>{correct} of {total}</b> correctly in {data.title || spec.title}.</p>
+        </div>
+        <div className="reveal r2" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 28 }}>
+          {[{ ic: "bolt", n: "+" + xp + " XP", l: "XP Accrued", c: C.gold }, { ic: "target", n: Math.round((correct / total) * 100) + "%", l: "Accuracy", c: C.emBright }, { ic: "medal", n: "1 Badge", l: spec.title || "Lab Master", c: C.coral }].map((s, i) => (
+            <div key={i} className="lift-card" style={{ background: C.cream, borderRadius: 10, padding: "18px 20px", textAlign: "center" }}><div style={{ width: 34, height: 34, borderRadius: 6, background: s.c + "12", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px" }}><Ic n={s.ic} s={16} c={s.c} sw={2.2} /></div><div style={{ fontSize: 22, fontWeight: 800, color: C.ink }}>{s.n}</div><div style={{ fontSize: 11.5, color: C.ink50, marginTop: 3 }}>{s.l}</div></div>
+          ))}
+        </div>
+        <div className="reveal r3 transcript-certificate">
+          <div className="transcript-header-box">
+            <span className="mono" style={{ fontSize: 10, color: C.emDeep, fontWeight: 700, letterSpacing: "0.12em" }}>OFFICIAL LABORATORY TRANSCRIPT</span>
+            <h3 style={{ fontSize: 21, fontWeight: 800, color: C.ink, marginTop: 4 }}>LabSpark Virtual Science Laboratories</h3>
+            <p style={{ fontSize: 11.5, color: C.ink50, marginTop: 2 }}>{spec.chapter || "CBSE / NCERT Practical Training"}</p>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 18 }}>
+            <ReportField label="STUDENT NAME" value={`${student.name}${spec.cls ? ` · ${spec.cls} ${spec.subject}` : ""}`} />
+            <ReportField label="EXPERIMENT" value={data.title || spec.title || ""} />
+            {spec.aim && <ReportField label="AIM" value={spec.aim} />}
+            {spec.items && (
+              <div>
+                <span className="mono" style={{ fontSize: 9.5, fontWeight: 700, color: C.ink30, letterSpacing: "0.06em", display: "block", marginBottom: 6 }}>OBSERVATION TABLE</span>
+                <div style={{ border: `1px solid ${C.line}`, borderRadius: 8, overflow: "hidden" }}>
+                  {spec.items.map((it, i) => {
+                    const cc = (spec.categories || []).find((c) => c.key === it.category);
+                    return (
+                      <div key={it.id} style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", padding: "8px 14px", gap: 8, borderTop: i ? `1px solid ${C.lineSoft}` : "none" }}>
+                        <span style={{ fontSize: 12, fontWeight: 700 }}>{it.emoji} {it.name}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: cc ? cc.color : C.ink70 }}>{cc ? cc.label : it.category}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {spec.conclusion && <ReportField label="CONCLUSION" value={spec.conclusion} />}
+            {data.aiFeedback && (
+              <div style={{ background: C.violetPale, border: `1px solid ${C.violet}22`, borderRadius: 10, padding: "14px 16px" }}>
+                <span className="mono" style={{ fontSize: 9.5, fontWeight: 700, color: C.violet, letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}><Ic n="spark" s={13} c={C.violet} sw={2} /> SPARK'S FEEDBACK · GEMINI</span>
+                <p style={{ fontSize: 13.5, color: C.ink70, lineHeight: 1.55, fontWeight: 500 }}>{data.aiFeedback}</p>
+              </div>
+            )}
+          </div>
+          <div style={{ display: "flex", gap: 10, marginTop: 24, flexWrap: "wrap" }}>
+            <Btn v="dark" icon="note" onClick={() => window.print()}>Print Transcript</Btn>
+            <Btn v="light" icon="send">Share with Teacher</Btn>
+          </div>
+        </div>
+        <div className="reveal r4" style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 30 }}>
+          <Btn v="ghost" iconL="refresh" onClick={onRetry}>Restart Lab</Btn>
+          <Btn v="primary" lg icon="arrow" onClick={onHome}>Return to Dashboard</Btn>
         </div>
       </div>
     </div>

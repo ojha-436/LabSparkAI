@@ -3,7 +3,19 @@
    key not set, demo on plain Firebase Hosting), callers fall back to the
    local canned responses so the UI never breaks. */
 
+import { auth } from "./firebaseInit.js";
+
 const API_BASE = (import.meta.env.VITE_API_BASE || "http://localhost:8787").replace(/\/$/, "");
+
+/* Attach the signed-in user's Firebase ID token so the backend can verify
+   the caller. Without it the backend returns 401 (callers fall back locally). */
+async function authHeader() {
+  try {
+    const u = auth.currentUser;
+    if (u) return { Authorization: "Bearer " + (await u.getIdToken()) };
+  } catch (e) {}
+  return {};
+}
 
 async function postJSON(path, body, timeoutMs = 12000) {
   const ctrl = new AbortController();
@@ -11,7 +23,7 @@ async function postJSON(path, body, timeoutMs = 12000) {
   try {
     const res = await fetch(`${API_BASE}${path}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(await authHeader()) },
       body: JSON.stringify(body),
       signal: ctrl.signal,
     });

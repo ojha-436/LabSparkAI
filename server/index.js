@@ -7,26 +7,68 @@ import express from "express";
 import cors from "cors";
 import { createServer } from "http";
 import { WebSocketServer } from "ws";
+import admin from "firebase-admin";
 import { GoogleGenAI, Modality } from "@google/genai";
 
 const PORT = process.env.PORT || 8787;
 const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 const LIVE_MODEL = process.env.GEMINI_LIVE_MODEL || "gemini-3.1-flash-live-preview";
 const API_KEY = process.env.GEMINI_API_KEY;
+const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT || "gen-lang-client-0686614374";
+const RATE_PER_MIN = Number(process.env.RATE_PER_MIN || 20);
+const RATE_PER_DAY = Number(process.env.RATE_PER_DAY || 300);
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ||
+  "https://gen-lang-client-0686614374.web.app,https://gen-lang-client-0686614374.firebaseapp.com,http://localhost:5173,http://localhost:4173"
+).split(",").map((s) => s.trim());
 
 if (!API_KEY) {
-  console.warn(
-    "[LabSpark] WARNING: GEMINI_API_KEY is not set. " +
-      "Set it in server/.env (local) or as a Cloud Run env var. " +
-      "Requests will return 503 until it is configured."
-  );
+  console.warn("[LabSpark] WARNING: GEMINI_API_KEY is not set. Requests return 503 until configured.");
 }
 
 const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
 
+// Firebase Admin — used only to VERIFY caller ID tokens (no service-account
+// key needed; verification fetches Google's public certs and checks the
+// audience against this project). On Cloud Run it also picks up ADC.
+try { admin.initializeApp({ projectId: PROJECT_ID }); } catch (e) {}
+
+async function verifyToken(token) {
+  if (!token) return null;
+  try { return await admin.auth().verifyIdToken(token); } catch (e) { return null; }
+}
+
+/* Require a valid Firebase ID token on every AI request. */
+async function requireAuth(req, res, next) {
+  const h = req.headers.authorization || "";
+  const token = h.startsWith("Bearer ") ? h.slice(7) : null;
+  const decoded = await verifyToken(token);
+  if (!decoded) return res.status(401).json({ error: "Please sign in to use Spark." });
+  req.uid = decoded.uid;
+  next();
+}
+
+/* Per-user soft rate limit (in-memory). Caps burst + daily usage so a single
+   account cannot run up the Gemini bill. */
+const buckets = new Map();
+function rateLimit(req, res, next) {
+  const key = req.uid || req.ip || "anon";
+  const now = Date.now();
+  let b = buckets.get(key);
+  if (!b) { b = { winStart: now, count: 0, dayStart: now, dayCount: 0 }; buckets.set(key, b); }
+  if (now - b.winStart > 60000) { b.winStart = now; b.count = 0; }
+  if (now - b.dayStart > 86400000) { b.dayStart = now; b.dayCount = 0; }
+  b.count++; b.dayCount++;
+  if (buckets.size > 10000) buckets.clear(); // safety valve
+  if (b.count > RATE_PER_MIN) return res.status(429).json({ error: "Too many requests — please slow down." });
+  if (b.dayCount > RATE_PER_DAY) return res.status(429).json({ error: "Daily AI limit reached. Try again tomorrow." });
+  next();
+}
+
 const app = express();
-app.use(cors()); // tighten to your frontend origin in production
+app.use(cors({ origin: (origin, cb) => cb(null, !origin || ALLOWED_ORIGINS.includes(origin)) }));
 app.use(express.json({ limit: "256kb" }));
+// Gate all /api/* HTTP routes behind auth + rate limiting (health stays open).
+app.use("/api", requireAuth, rateLimit);
 
 /* ── Spark's persona. This is the system instruction sent on every call.
    In production this block is a great candidate for Vertex AI context
@@ -153,73 +195,102 @@ app.post("/api/grade", async (req, res) => {
 const server = createServer(app);
 const wss = new WebSocketServer({ server, path: "/api/live" });
 
-wss.on("connection", async (browser, req) => {
+const liveSessions = new Map(); // uid -> active count
+const MAX_LIVE_PER_USER = Number(process.env.MAX_LIVE_PER_USER || 1);
+
+wss.on("connection", (browser, req) => {
   const sendJSON = (o) => { try { if (browser.readyState === 1) browser.send(JSON.stringify(o)); } catch (e) {} };
 
+  // Origin check (browsers always send Origin on WS handshakes).
+  const origin = req.headers.origin;
+  if (origin && !ALLOWED_ORIGINS.includes(origin)) { try { browser.close(1008, "origin"); } catch (e) {} return; }
   if (!ai) { sendJSON({ type: "error", message: "Gemini not configured" }); browser.close(); return; }
 
   const url = new URL(req.url, "http://localhost");
   const experiment = url.searchParams.get("experiment") || "a science lab";
 
-  let session = null;
-  let closed = false;
-  const closeAll = () => { if (closed) return; closed = true; try { session && session.close(); } catch (e) {} try { browser.close(); } catch (e) {} };
+  let session = null, closed = false, authed = false, uid = null;
+  const closeAll = () => {
+    if (closed) return; closed = true;
+    if (uid) { const n = (liveSessions.get(uid) || 1) - 1; if (n <= 0) liveSessions.delete(uid); else liveSessions.set(uid, n); }
+    try { session && session.close(); } catch (e) {}
+    try { browser.close(); } catch (e) {}
+  };
 
-  try {
-    session = await ai.live.connect({
-      model: LIVE_MODEL,
-      config: {
-        responseModalities: [Modality.AUDIO],
-        systemInstruction:
-          SPARK_SYSTEM +
-          `\nThe student is working on: ${experiment}. ` +
-          `Speak naturally and briefly, like a friendly teacher beside them. ` +
-          `When the session starts, greet them warmly in one short sentence.`,
-        inputAudioTranscription: {},
-        outputAudioTranscription: {},
-      },
-      callbacks: {
-        onopen: () => sendJSON({ type: "ready" }),
-        onmessage: (msg) => {
-          const sc = msg.serverContent;
-          // audio out (prefer explicit parts; fall back to aggregated msg.data)
-          let sentAudio = false;
-          const parts = sc?.modelTurn?.parts || [];
-          for (const p of parts) {
-            if (p.inlineData?.data) { sendJSON({ type: "audio", data: p.inlineData.data }); sentAudio = true; }
-          }
-          if (!sentAudio && msg.data) sendJSON({ type: "audio", data: msg.data });
-          if (sc?.inputTranscription?.text) sendJSON({ type: "in", text: sc.inputTranscription.text });
-          if (sc?.outputTranscription?.text) sendJSON({ type: "out", text: sc.outputTranscription.text });
-          if (sc?.interrupted) sendJSON({ type: "interrupted" });
-          if (sc?.turnComplete) sendJSON({ type: "turn" });
+  // The client must send {type:"auth", token} as its FIRST message within 5s.
+  const authTimer = setTimeout(() => {
+    if (!authed) { sendJSON({ type: "error", message: "auth timeout" }); try { browser.close(1008, "auth"); } catch (e) {} }
+  }, 5000);
+
+  async function startGemini() {
+    try {
+      session = await ai.live.connect({
+        model: LIVE_MODEL,
+        config: {
+          responseModalities: [Modality.AUDIO],
+          systemInstruction:
+            SPARK_SYSTEM +
+            `\nThe student is working on: ${experiment}. ` +
+            `Speak naturally and briefly, like a friendly teacher beside them. ` +
+            `When the session starts, greet them warmly in one short sentence.`,
+          inputAudioTranscription: {},
+          outputAudioTranscription: {},
         },
-        onerror: (e) => { sendJSON({ type: "error", message: String(e?.message || e) }); closeAll(); },
-        onclose: () => closeAll(),
-      },
-    });
-  } catch (e) {
-    console.error("live connect failed:", e);
-    sendJSON({ type: "error", message: "live connect failed" });
-    browser.close();
-    return;
+        callbacks: {
+          onopen: () => sendJSON({ type: "ready" }),
+          onmessage: (msg) => {
+            const sc = msg.serverContent;
+            let sentAudio = false;
+            const parts = sc?.modelTurn?.parts || [];
+            for (const p of parts) {
+              if (p.inlineData?.data) { sendJSON({ type: "audio", data: p.inlineData.data }); sentAudio = true; }
+            }
+            if (!sentAudio && msg.data) sendJSON({ type: "audio", data: msg.data });
+            if (sc?.inputTranscription?.text) sendJSON({ type: "in", text: sc.inputTranscription.text });
+            if (sc?.outputTranscription?.text) sendJSON({ type: "out", text: sc.outputTranscription.text });
+            if (sc?.interrupted) sendJSON({ type: "interrupted" });
+            if (sc?.turnComplete) sendJSON({ type: "turn" });
+          },
+          onerror: (e) => { sendJSON({ type: "error", message: String(e?.message || e) }); closeAll(); },
+          onclose: () => closeAll(),
+        },
+      });
+    } catch (e) {
+      console.error("live connect failed:", e);
+      sendJSON({ type: "error", message: "live connect failed" });
+      closeAll();
+    }
   }
 
-  browser.on("message", (data, isBinary) => {
+  browser.on("message", async (data, isBinary) => {
     if (closed) return;
+
+    // Handshake: first message must authenticate.
+    if (!authed) {
+      if (isBinary) return;
+      let obj; try { obj = JSON.parse(data.toString()); } catch (e) { return; }
+      if (obj.type !== "auth") return;
+      const decoded = await verifyToken(obj.token);
+      if (!decoded) { sendJSON({ type: "error", message: "Please sign in to use live voice." }); try { browser.close(1008, "auth"); } catch (e) {} return; }
+      uid = decoded.uid;
+      const cur = liveSessions.get(uid) || 0;
+      if (cur >= MAX_LIVE_PER_USER) { sendJSON({ type: "error", message: "A live session is already running." }); try { browser.close(1008, "limit"); } catch (e) {} return; }
+      liveSessions.set(uid, cur + 1);
+      authed = true; clearTimeout(authTimer);
+      await startGemini();
+      return;
+    }
+
+    // Post-auth: relay audio/text to Gemini.
     try {
       if (isBinary) {
         const b64 = Buffer.from(data).toString("base64");
-        session.sendRealtimeInput({ audio: { data: b64, mimeType: "audio/pcm;rate=16000" } });
+        session && session.sendRealtimeInput({ audio: { data: b64, mimeType: "audio/pcm;rate=16000" } });
       } else {
         const obj = JSON.parse(data.toString());
-        if (obj.type === "audio" && obj.data) {
-          session.sendRealtimeInput({ audio: { data: obj.data, mimeType: "audio/pcm;rate=16000" } });
-        } else if (obj.type === "text" && obj.text) {
-          session.sendClientContent({ turns: obj.text });
-        } else if (obj.type === "end") {
-          session.sendRealtimeInput({ audioStreamEnd: true });
-        }
+        if (obj.type === "audio" && obj.data) session && session.sendRealtimeInput({ audio: { data: obj.data, mimeType: "audio/pcm;rate=16000" } });
+        else if (obj.type === "text" && obj.text) session && session.sendClientContent({ turns: obj.text });
+        else if (obj.type === "end") session && session.sendRealtimeInput({ audioStreamEnd: true });
       }
     } catch (e) {}
   });

@@ -9,6 +9,8 @@ import { Lab3D } from "./lab3d.jsx";
 import { CircuitLab } from "./circuitlab.jsx";
 import { Report } from "./report.jsx";
 import { ProfilePage, ProgressPage, AchievementsPage } from "./profile.jsx";
+import { GenLab } from "./genlab.jsx";
+import { GEN_LABS } from "./genlabdata.js";
 import { CATALOG } from "./data.js";
 import firebase, { db } from "./firebaseInit.js";
 const { useState: aUS } = React;
@@ -87,13 +89,14 @@ function App() {
   const [activeExpId, setActiveExpId] = aUS(null);
 
   const openExp = (id) => {
-    if (id !== "acid-base" && id !== "circuit") {
+    const isGen = !!GEN_LABS[id];
+    if (id !== "acid-base" && id !== "circuit" && !isGen) {
       setToast("That experiment is coming soon! 🧪");
       setTimeout(() => setToast(null), 3200);
       return;
     }
     setActiveExpId(id);
-    setView(id === "acid-base" ? "lab" : "circuit-lab");
+    setView(id === "acid-base" ? "lab" : id === "circuit" ? "circuit-lab" : "genlab");
   };
 
   const complete = (data) => {
@@ -116,7 +119,9 @@ function App() {
 
   // Re-open a stored certificate from the Achievements page.
   const viewCertificate = (c) => {
-    setReportData({ experimentId: c.experimentId || c.id, correct: c.correct, total: c.total, xp: c.xp, results: {}, fromCertificate: true });
+    const id = c.experimentId || c.id;
+    setActiveExpId(id);
+    setReportData({ experimentId: id, correct: c.correct, total: c.total, xp: c.xp, results: {}, fromCertificate: true, generic: !!GEN_LABS[id], title: c.name });
     setReportReturn("achievements");
     setView("report");
   };
@@ -167,13 +172,21 @@ function App() {
       {view === "circuit-lab" && (
         <CircuitLab onExit={() => setView("dashboard")} onComplete={complete} addXp={addXp} />
       )}
-      
+
+      {view === "genlab" && GEN_LABS[activeExpId] && (
+        <GenLab spec={GEN_LABS[activeExpId]} onExit={() => setView("dashboard")} onComplete={complete} addXp={addXp} />
+      )}
+
       {view === "report" && reportData && (
         <Report
           data={reportData}
           student={student}
           onHome={() => setView(reportReturn)}
-          onRetry={() => setView((reportData.experimentId || activeExpId) === "circuit" ? "circuit-lab" : "lab")}
+          onRetry={() => {
+            const id = reportData.experimentId || activeExpId;
+            setActiveExpId(id);
+            setView(id === "circuit" ? "circuit-lab" : GEN_LABS[id] ? "genlab" : "lab");
+          }}
         />
       )}
       

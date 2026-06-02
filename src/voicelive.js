@@ -3,6 +3,7 @@
    - Receives 24 kHz PCM16 audio frames and plays them back gap-free.
    - Surfaces live input/output transcriptions as captions.
    Everything degrades safely: any failure calls onState('error'). */
+import { auth } from "./firebaseInit.js";
 
 const API_BASE = (import.meta.env.VITE_API_BASE || "http://localhost:8787").replace(/\/$/, "");
 
@@ -67,7 +68,12 @@ export class LiveVoice {
     this.ws = new WebSocket(wsURL(this.experiment));
     this.ws.binaryType = "arraybuffer";
 
-    this.ws.onopen = () => {};
+    // First message must authenticate the user (the backend waits for it).
+    this.ws.onopen = async () => {
+      let token = "";
+      try { const u = auth.currentUser; if (u) token = await u.getIdToken(); } catch (e) {}
+      try { this.ws.send(JSON.stringify({ type: "auth", token })); } catch (e) {}
+    };
     this.ws.onerror = () => { if (!this.stopped) this.onState("error", "Connection error"); };
     this.ws.onclose = () => { if (!this.stopped) this.onState("closed"); };
     this.ws.onmessage = (ev) => {
