@@ -9,7 +9,7 @@ import { Lab3D } from "./lab3d.jsx";
 import { CircuitLab } from "./circuitlab.jsx";
 import { Report } from "./report.jsx";
 import { ProfilePage, ProgressPage, AchievementsPage } from "./profile.jsx";
-import { GenLab } from "./genlab.jsx";
+import { GenLab3D } from "./genlab3d.jsx";
 import { GEN_LABS } from "./genlabdata.js";
 import { CATALOG } from "./data.js";
 import firebase, { db } from "./firebaseInit.js";
@@ -27,6 +27,23 @@ function App() {
   const [uid, setUid] = aUS(null);
   const [student, setStudent] = aUS(DEFAULT_STUDENT);
   const [reportReturn, setReportReturn] = aUS("dashboard");
+
+  // ── Browser back/forward support ──
+  // Each view change pushes a history entry so the browser Back button moves
+  // between in-app views (e.g. lab → dashboard) instead of leaving the site.
+  const popRef = React.useRef(false);
+  const firstRef = React.useRef(true);
+  React.useEffect(() => {
+    window.history.replaceState({ view: "landing" }, "");
+    const onPop = (e) => { popRef.current = true; setView((e.state && e.state.view) || "landing"); };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+  React.useEffect(() => {
+    if (firstRef.current) { firstRef.current = false; return; }
+    if (popRef.current) { popRef.current = false; return; }
+    window.history.pushState({ view }, "");
+  }, [view]);
 
   React.useEffect(() => {
     const unsubscribe = firebase.auth().onAuthStateChanged(async (user) => {
@@ -174,7 +191,7 @@ function App() {
       )}
 
       {view === "genlab" && GEN_LABS[activeExpId] && (
-        <GenLab spec={GEN_LABS[activeExpId]} onExit={() => setView("dashboard")} onComplete={complete} addXp={addXp} />
+        <GenLab3D spec={GEN_LABS[activeExpId]} onExit={() => setView("dashboard")} onComplete={complete} addXp={addXp} />
       )}
 
       {view === "report" && reportData && (

@@ -67,7 +67,7 @@ function Report({ data, student, onHome, onRetry }) {
           {/* Transcript Metadata */}
           <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 16, borderBottom: `1px solid ${C.line}`, paddingBottom: 16, marginBottom: 20 }}>
             <div>
-              <ReportField label="STUDENT NAME" value={`${student.name} · ${data.experimentId === "circuit" ? "Class 8 Science" : "Class 7 Science"}`} />
+              <ReportField label="STUDENT NAME" value={`${student.name} · Class 7 Science`} />
               <ReportField label="EXPERIMENT NAME" value={data.experimentId === "circuit" ? "Investigating Electrical Conductivity of Everyday Materials" : "Testing Acids, Bases and Neutral Liquids using Litmus Indicators"} />
             </div>
             <div>
@@ -238,8 +238,8 @@ function GenericReport({ data, student, onHome, onRetry, confetti }) {
                   {spec.items.map((it, i) => {
                     const cc = (spec.categories || []).find((c) => c.key === it.category);
                     return (
-                      <div key={it.id} style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", padding: "8px 14px", gap: 8, borderTop: i ? `1px solid ${C.lineSoft}` : "none" }}>
-                        <span style={{ fontSize: 12, fontWeight: 700 }}>{it.emoji} {it.name}</span>
+                      <div key={it.id} style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", padding: "8px 14px", gap: 8, borderTop: i ? `1px solid ${C.lineSoft}` : "none", alignItems: "center" }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 7 }}><span style={{ width: 11, height: 11, borderRadius: 3, background: it.color || C.ink30, display: "inline-block" }} />{it.name}</span>
                         <span style={{ fontSize: 12, fontWeight: 700, color: cc ? cc.color : C.ink70 }}>{cc ? cc.label : it.category}</span>
                       </div>
                     );

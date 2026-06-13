@@ -33,7 +33,7 @@ function CircuitLab({ onExit, onComplete, addXp }) {
   // Multimodal Voice states
   const [voiceActive, setVoiceActive] = cUS(true);
   const [voiceSpeaking, setVoiceSpeaking] = cUS(false);
-  const [voiceMsg, setVoiceMsg] = cUS("Welcome, future physicist! I'm Spark. Today we are executing CBSE Class 8 Physics Chapter 12: Electric Current & Effects. Pick any everyday material from the pine inventory tray to clamp it into the gap.");
+  const [voiceMsg, setVoiceMsg] = cUS("Welcome, future physicist! I'm Spark. Today we are exploring Class 7 Chapter 3: Electricity — Circuits and their Components. Pick any everyday material from the pine inventory tray to clamp it into the gap.");
   const [mood, setMood] = cUS("happy");
   const [graded, setGraded] = cUS(false);
 
@@ -104,7 +104,7 @@ function CircuitLab({ onExit, onComplete, addXp }) {
   // Initial greeting
   cUE(() => {
     setTimeout(() => {
-      triggerVoiceResponse("Welcome back, physicist! Today we are exploring CBSE Chapter 12: Electricity and Circuits. Look at the workbench! We have a battery, wire clips, and a light bulb. Before we test our materials in the circuit gap, select any everyday material from the pine tray to clamp it into the gap!", 8000);
+      triggerVoiceResponse("Welcome back, physicist! Today we are exploring Chapter 3: Electricity — Circuits and their Components. Look at the workbench! We have a battery, wire clips, and a light bulb. Before we test our materials in the circuit gap, select any everyday material from the pine tray to clamp it into the gap!", 8000);
     }, 800);
   }, []);
 
@@ -209,7 +209,7 @@ function CircuitLab({ onExit, onComplete, addXp }) {
       if (isConductor) addXp(10);
       // Real Spark: ask Gemini to react to closing the circuit on this material.
       sparkReact({
-        experiment: "Class 8 Physics — Simple Electric Circuit (conductors & insulators)",
+        experiment: "Class 7 Physics — Simple Electric Circuit (conductors & insulators)",
         event: { action: "close-switch", material: currentMaterial.name, madeOf: currentMaterial.material, bulbGlows: isConductor },
         labState: { type: currentMaterial.type },
       })
@@ -299,8 +299,8 @@ function CircuitLab({ onExit, onComplete, addXp }) {
           <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
             <div style={{ width: 28, height: 28, borderRadius: 6, background: "rgba(124,58,237,0.18)", display: "flex", alignItems: "center", justifyContent: "center" }}><Ic n="bolt" s={15} c={C.violet} sw={2} /></div>
             <div>
-              <div style={{ fontSize: 14.5, fontWeight: 700, lineHeight: 1 }} className="font-display">Class 8 Physics Lab</div>
-              <div className="mono" style={{ fontSize: 9.5, color: C.ink30, marginTop: 2 }}>EXP 12 · SIMPLE ELECTRIC CIRCUIT</div>
+              <div style={{ fontSize: 14.5, fontWeight: 700, lineHeight: 1 }} className="font-display">Class 7 Physics Lab</div>
+              <div className="mono" style={{ fontSize: 9.5, color: C.ink30, marginTop: 2 }}>CH 3 · SIMPLE ELECTRIC CIRCUIT</div>
             </div>
           </div>
         </div>
