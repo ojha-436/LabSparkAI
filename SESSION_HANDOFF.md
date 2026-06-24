@@ -1,0 +1,190 @@
+# LabSpark AI — Session Handoff (current state)
+
+> **New session? Read this file first.** It is the single source of truth for where the project stands, how it's built, how to run/deploy it, and what to do next. Companion docs: `CONTEXT_GRAPH.md` (diagrams), `PROJECT_OVERVIEW.md` (pitch + market), `DESIGN_HANDOFF.md` (design system), `README.md` (setup).
+
+---
+
+## 0. TL;DR
+
+LabSpark AI is an **AI-tutored 3D virtual science lab** for NCERT Class 6–10. It is **built and deployed live**. A student enters a 3D lab room, performs an experiment with realistic apparatus, talks to **"Spark"** (a Google Gemini tutor, voice + text), gets AI-graded, and earns a certificate.
+
+- **Status:** production. **22 fully interactive labs** live. Class 6 (3 Chem + 3 Phys), Class 7 (3 Chem + 2 Phys), Class 8 (3 Chem + 2 Phys) and Class 9 (3 Chem + 2 Phys) are **100% complete** — every catalogued Class 6–9 lab is `ready`. Class 10 remains placeholders.
+- **Live app:** https://gen-lang-client-0686614374.web.app
+- **Repo:** https://github.com/ojha-436/LabSparkAI · **branch** `main` · **last commit** `cb74b20`
+- **Local code:** `D:\google_Xbuild\LabSpark_AI` (moved OFF OneDrive — keep it there).
+- Working tree is **clean and pushed** as of this handoff.
+
+---
+
+## 1. Environment & access
+
+- **Project path:** `D:\google_Xbuild\LabSpark_AI` (Windows; shell is PowerShell + Git-Bash).
+- **Gemini key:** lives ONLY in `server/.env` (git-ignored). It's an `AQ.…` token. Models available to it: `gemini-2.5-flash` (text, used), `gemini-3.1-flash-live-preview` (live voice, used), `gemini-2.5-flash-preview-tts` (clip generation). `gemini-2.0-flash` is NOT available to this account.
+- **GCP/Firebase:** project `gen-lang-client-0686614374`; gcloud + firebase CLI authed as `princeojha436@gmail.com`; billing enabled. Backend = Cloud Run service `labspark-backend` in `asia-south1` (Mumbai).
+- **Run locally:**
+  - Backend: `cd server && npm run dev` (auto-loads `server/.env`; serves :8787)
+  - Frontend: `npm run dev` (Vite :5173)
+- **Build:** `npm run build` (expect "✓ 662 modules transformed").
+- **Deploy frontend:** `npx firebase-tools deploy --only hosting --project gen-lang-client-0686614374`
+- **Deploy backend:** `gcloud run deploy labspark-backend --source server --region asia-south1 --timeout 3600 --quiet` (env GEMINI_API_KEY persists across deploys).
+
+---
+
+## 2. Architecture
+
+```
+Browser (React+Vite, Firebase Hosting/CDN)
+   │  Firebase ID token on every AI call
+   ▼
+Cloud Run backend (server/index.js, Express)  ──►  Google Gemini
+   • POST /api/spark/ask  (text tutor)               2.5 Flash (text)
+   • POST /api/grade      (JSON grading)             3.1-flash-live (voice)
+   • WS   /api/live       (voice relay)
+   • requireAuth + per-user rate limits + CORS lock
+Firebase Auth + Firestore  ── users/{uid}: profile, progress, completions, certificates
+```
+
+**Tech:** React 18, Vite, React Three Fiber/`drei` (WebGL 3D), Firebase (Auth/Firestore/Hosting), Node/Express on Cloud Run, `firebase-admin` (token verify), `ws` (live relay). Styling = inline styles reading the `C` token object (`src/tokens.js`) + utility classes in `src/index.css` (NOT Tailwind).
+
+---
+
+## 3. Repo / file map
+
+```
+src/
+  main.jsx            entry
+  app.jsx             routing + auth + student state + browser History (back button)
+  tokens.js           design tokens (C object) ; index.css mirrors as CSS vars
+  index.css           design system / utility classes / animations
+  firebaseInit.js     firebase init (exports auth, db, default firebase)
+  api.js              frontend→backend (attaches ID token; graceful fallback)
+  speech.js           free TTS + on-device STT + pre-generated clip playback
+  landing.jsx         marketing page + creator card (CREATOR config; photo public/creator.jpg)
+  login.jsx           Google + email auth
+  dashboard.jsx       catalogue: Class 6–10 cards → drill into subject
+  profile.jsx         ProfilePage / ProgressPage / AchievementsPage + Avatar
+  report.jsx          report + NCERT certificate (+ GenericReport branch for data labs)
+  lab3d.jsx           FLAGSHIP 3D Acids & Bases lab (bespoke; litmus dip)
+  circuitlab.jsx      Electric Circuit lab (older 2.5D CSS; NOT cost-optimised yet)
+  lab3dscene.jsx      SHARED 3D room: SceneEnv, LabRoom, BenchInstruments + glass/instrument models
+  labitems3d.jsx      realistic procedural item models (Item3D shape switch) + tools/rigs
+  genlab3d.jsx        DATA-DRIVEN 3D lab engine (renders any GEN_LABS spec)
+  genlabdata.js       GEN_LABS = the lab "content" (specs)  ← add new labs here
+  genlab.jsx          legacy 2.5D engine (kept, UNUSED — app routes to genlab3d)
+  spark.jsx           SPARK_QA FAQ cache + sparkAnswerStrict
+  askspark.jsx        on-demand "Ask Spark" floating panel
+  voicelive.js        live two-way voice client (WS + mic capture + playback)
+  ui.jsx, labpanel.jsx  shared UI primitives
+server/
+  index.js            Gemini tutor + grader + live WS relay + auth/rate-limit/CORS
+  generate-narration.mjs  one-time TTS clip generator (writes public/narration/*.wav + manifest)
+  Dockerfile, .env(.example), .gcloudignore
+public/narration/     pre-generated Spark voice clips (faq-0..6.wav + manifest.json)
+docs: PROJECT_OVERVIEW.md, DESIGN_HANDOFF.md, CONTEXT_GRAPH.md, PRD_LabSpark_AI.md, README.md
+deliverable: LabSpark_AI_Pitch_Deck.pptx
+```
+
+---
+
+## 4. Lab catalogue (exact, current)
+
+**22 fully interactive (status `ready`):**
+
+| id | Class | Subject | Renderer / mode | Experiment |
+|---|---|---|---|---|
+| acid-base | 7 | Chemistry | `lab3d.jsx` (bespoke 3D) | Litmus: dip strips, classify acid/base/neutral |
+| circuit | 7 | Physics | `circuitlab.jsx` (2.5D) | Build circuit; conductor/insulator |
+| solubility | 6 | Chemistry | genlab3d · `water` | Dissolve in water → soluble/insoluble |
+| magnetism | 6 | Physics | genlab3d · `magnet` | Magnet test → magnetic/non-magnetic |
+| materials-light | 6 | Chemistry | genlab3d · `light` | Torch+screen → transparent/translucent/opaque |
+| separation | 6 | Chemistry | genlab3d · `inspect` | Choose handpicking/winnowing/sieving/filtration |
+| motion | 6 | Physics | genlab3d · `motion` | Animated toys → linear/circular/oscillatory |
+| temperature | 6 | Physics | genlab3d · `thermo` | Thermometer → cold/warm/hot |
+| changes | 7 | Chemistry | genlab3d · `inspect` | Physical vs chemical change |
+| neutralise | 7 | Chemistry | genlab3d · `mix` | Neutralisation: add a base/acid (indicator turns green) |
+| heat-transfer | 7 | Physics | genlab3d · `inspect` | Conduction/convection/radiation |
+| luminous | 7 | Physics | genlab3d · `glow` | Luminous vs non-luminous (dark test) |
+| metals-nonmetals | 8 | Chemistry | genlab3d · `examine` | Conductivity tester → metal/non-metal |
+| rusting | 8 | Chemistry | genlab3d · `rust` | Iron-nail set-ups → rusts / stays shiny |
+| combustion | 8 | Chemistry | genlab3d · `burn` | Flame test → combustible / non-combustible |
+| reflection | 8 | Physics | genlab3d · `reflect` | Parallel rays → regular / diffused reflection |
+| friction | 8 | Physics | genlab3d · `slide` | Block slides → more / less friction |
+| solutions | 9 | Chemistry | genlab3d · `tyndall` | Light beam → solution / colloid / suspension |
+| states-of-matter | 9 | Chemistry | genlab3d · `states` | Particle box → solid / liquid / gas |
+| elements-compounds | 9 | Chemistry | genlab3d · `inspect` | Classify element / compound / mixture |
+| force | 9 | Physics | genlab3d · `inspect` | Newton's first / second / third law |
+| energy | 9 | Physics | genlab3d · `inspect` | Kinetic vs potential energy |
+
+**2 placeholders (status `soon`, show "coming soon"):** reactions (10 Chem), lens (10 Phys).
+
+---
+
+## 5. How the data-driven 3D lab engine works (the scaling lever)
+
+**To add a new classification lab, you usually write DATA ONLY:**
+1. Add a spec to `GEN_LABS` in `src/genlabdata.js`.
+2. Add a matching `CATALOG` entry in `src/data.js` with the same `id` and `status: "ready"`.
+3. `app.jsx` auto-routes any `GEN_LABS[id]` to `<GenLab3D>` (view `"genlab"`). `report.jsx` auto-renders its certificate (`data.generic`).
+
+**Lab spec shape** (`genlabdata.js`): `{ id, title, cls, subject, chapter, icon, accent, mode, aim, theory, materials[], testVerb, categories:[{key,label,color,desc}], items[], question:{q,options,ans,correctMsg,incorrectMsg}, conclusion }`.
+**Item shape:** `{ id, name, shape, color, category, fact, temp?(thermo), labelY? }`.
+
+**`mode` → on-bench rig** (in `genlab3d.jsx` / `labitems3d.jsx`):
+- `magnet` → `BarMagnet` (magnetic items lift to it)
+- `water` → `WaterStation` (soluble tints water, insoluble = sediment/oil layer)
+- `examine` → `ConductivityTester` (bulb lights for metals)
+- `light` → `LightRig` (torch + beam + screen spot/shadow)
+- `thermo` → `ThermoRig` (mercury animates to `item.temp`, °C badge)
+- `inspect` → `Magnifier` (hovers over active item)
+- `motion` → no rig; the toy **shape animates** when selected (via `active` prop)
+- `glow` → `GlowRig` (point light + pulsing halo when item is luminous)
+- `mix` → `NeutraliseStation` (beaker of universal indicator; starts red for an acidic sample / purple for a basic one, a matching dropper adds base or acid, colour lerps to neutral green — defined in `genlab3d.jsx`)
+- `rust` → `RustStation` (iron nail in a test tube; turns rust-brown + dull when air+moisture present, stays shiny otherwise — defined in `genlab3d.jsx`)
+- `burn` → `BurnRig` (a burning matchstick approaches; a flame leaps up if the sample is combustible — `labitems3d.jsx`)
+- `reflect` → `ReflectRig` (3 parallel rays hit the surface; reflected parallel if regular, scattered if diffused — `labitems3d.jsx`)
+- `slide` → `SlideRig` (a block slides on the surface — glides far on low friction, barely moves on high — `labitems3d.jsx`)
+- `tyndall` → `TyndallStation` (a beam crosses the beaker — invisible in a true solution, scatters/glows in a colloid, cloudy + settling in a suspension — `genlab3d.jsx`)
+- `states` → `StatesRig` (a transparent box of particles — vibrating lattice (solid), loose drifting (liquid), free flight (gas) — `labitems3d.jsx`)
+
+**Available `shape` models** (`SHAPES` map in `labitems3d.jsx`): nail, pin, coin, foil, wire, ruler, strip, ribbon, lump, slab, frosted, sheet, block, panel, cup, fan, pendulum, swing, car, top, ball, orb, bulb, candle, spoon, powder, grains, crystal, liquid, mixture, specks. Need a new look? Add a model fn + register it in `SHAPES`. Animated shapes read the `active` prop.
+
+Every 3D lab reuses `lab3dscene.jsx` (`SceneEnv`+`LabRoom`+`BenchInstruments`) so the room, lighting, wall charts and **Spark HUD position/UI are identical** everywhere. The flagship `lab3d.jsx` keeps its own copy of the scene (deliberately not refactored to import lab3dscene, to protect the verified flagship — could be unified later).
+
+---
+
+## 6. AI, cost & security model
+
+- **Cost-optimised:** routine narration is FREE (browser TTS + cached `public/narration` clips). Paid Gemini is used only for (a) novel "Ask Spark" questions not in the FAQ cache, and (b) one end-of-lab `gradeLab` call. Common questions answered from `SPARK_QA` (spark.jsx) at ₹0. Live native-audio voice is opt-in "premium" (the expensive mode — it once cost ₹25/session before this rework; now a standard lab is well under ₹1).
+- **Security (deployed):** every `/api/*` requires a Firebase ID token (`requireAuth`); `/api/live` WS needs a first `{type:"auth",token}` handshake; per-user rate limits 20/min + 300/day; CORS locked to web.app/firebaseapp.com/localhost. Verified: unauth → 401, bad token → 401, WS bad auth → close 1008, real signed-in token → 200.
+- **All AI goes through `api.js` / `speech.js`** (token + graceful fallback) — never call the backend directly from a component.
+
+---
+
+## 7. Conventions & gotchas (read before editing)
+
+- **Stay on D:** the project was on OneDrive, which kept offloading/locking `node_modules` (vite/rollup binaries vanished). If a build fails with "Cannot find module", do `rm -rf node_modules && npm install`.
+- **Design tokens:** use the `C` object / CSS vars — never hardcode hex. Teal = primary, indigo = AI/Spark accent.
+- **No responsive breakpoints exist** (no `@media`). Desktop-first; labs assume ≥~900px and a fixed 348px Spark HUD. Mobile is a known TODO.
+- **Local visual QA limits:** LibreOffice/Poppler are NOT installed, so `.pptx`/PDF rendering can't be auto-verified here. For 3D labs, verify headlessly via Playwright: mount a temp preview, dispatch `PointerEvent`s across the canvas at y≈410 until the "X/N EXAMINED" counter increments, screenshot, then delete the temp files. (Pixel sampling needs `preserveDrawingBuffer`.)
+- **Accessibility:** mouse/visual-first today; clickable `<div>`s, missing focus rings/ARIA, no `prefers-reduced-motion`. Fixes are spec'd in `DESIGN_HANDOFF.md`.
+- **`circuitlab.jsx`** still calls Gemini (`sparkReact`) per switch toggle — not yet cost-optimised like the rest; candidate to migrate to the scripted-narration pattern.
+- **markitdown** console output shows mojibake (`?`/`�`) for unicode — that's console encoding, not a file problem.
+- The `.pptx` deck is committed as a binary in the repo.
+
+---
+
+## 8. Roadmap / suggested next steps
+
+- **Class 8–10 labs** (next content push): Class 8 Phys (reflection), Class 8 Chem (rusting), Class 9 (force, solutions), Class 10 (reactions, lens). All can be `genlab3d` data specs; add new `shape` models/rigs as needed (e.g. a mirror/ray rig for reflection, a force/spring rig).
+- **Monetisation engine** (PRD pillar): freemium credits, Razorpay/Stripe, B2B school dashboard.
+- **Mobile-responsive** layouts + low-end device tuning.
+- **NCERT-textbook RAG** grounding (Vertex AI Search) for citeable answers.
+- **Multilingual Spark** (Hindi + regional).
+- **Accessibility (WCAG)** pass.
+- Optional: unify `lab3d.jsx` to import `lab3dscene.jsx` (remove the duplicate scene copy); cost-optimise `circuitlab.jsx`.
+
+---
+
+## 9. Outstanding small items
+- Creator name in `landing.jsx` `CREATOR` is a placeholder ("Prince Kumar"); GitHub handle is `ojha-436` (possibly "Prince Ojha") — confirm and update. Drop a profile photo at `public/creator.jpg`.
+- If the Gemini key was shared in chat, consider rotating it (the app reads it from env, no code change needed).

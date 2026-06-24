@@ -547,6 +547,125 @@ export function GlowRig({ x, lit }) {
   );
 }
 
+/* Combustion (mode "burn"): a burning matchstick approaches the active sample;
+   if it is combustible a flame leaps up from it, otherwise nothing catches. */
+export function BurnRig({ x, burning }) {
+  const flame = iUR();
+  useFrame((s) => {
+    if (!flame.current) return;
+    const t = s.clock.elapsedTime;
+    flame.current.scale.y = 1 + Math.sin(t * 12) * 0.18;
+    flame.current.scale.x = 1 + Math.sin(t * 9) * 0.08;
+  });
+  return (
+    <group position={[x, 0, 0.1]}>
+      {/* burning matchstick brought in from the right */}
+      <group position={[0.32, 0.2, 0]} rotation={[0, 0, -0.6]}>
+        <mesh castShadow><cylinderGeometry args={[0.008, 0.008, 0.2, 8]} /><meshStandardMaterial color="#8b5a2b" roughness={0.8} /></mesh>
+        <mesh position={[0, 0.12, 0]}><coneGeometry args={[0.02, 0.07, 12]} /><meshStandardMaterial color="#f97316" emissive="#f97316" emissiveIntensity={1.6} transparent opacity={0.9} /></mesh>
+      </group>
+      {burning && (
+        <group ref={flame} position={[0, 0.34, 0]}>
+          <mesh><coneGeometry args={[0.07, 0.26, 16]} /><meshStandardMaterial color="#f97316" emissive="#f97316" emissiveIntensity={1.6} transparent opacity={0.85} /></mesh>
+          <mesh position={[0, -0.03, 0]}><coneGeometry args={[0.036, 0.14, 14]} /><meshStandardMaterial color="#fde047" emissive="#fde047" emissiveIntensity={2.1} /></mesh>
+          <pointLight color="#fb923c" intensity={0.9} distance={1.8} position={[0, 0.1, 0]} />
+        </group>
+      )}
+    </group>
+  );
+}
+
+/* Reflection (mode "reflect"): three parallel rays strike the active surface.
+   A regular (smooth) surface sends them back parallel; a rough surface
+   scatters them in all directions (diffused reflection). */
+export function ReflectRig({ x, regular }) {
+  const L = 0.5, sy = 0.22, sz = 0.12;
+  const inDir = -Math.PI / 4, outDir = Math.PI / 4;
+  const sxs = [-0.12, 0, 0.12];
+  const beam = (S, ang, len, op = 0.6) => (
+    <mesh position={[S[0] + Math.cos(ang) * len / 2, S[1] + Math.sin(ang) * len / 2, sz]} rotation={[0, 0, ang - Math.PI / 2]}>
+      <cylinderGeometry args={[0.006, 0.006, len, 8]} />
+      <meshBasicMaterial color="#fbbf24" transparent opacity={op} depthWrite={false} />
+    </mesh>
+  );
+  const diffAngles = [Math.PI * 0.2, Math.PI * 0.35, Math.PI * 0.5, Math.PI * 0.65, Math.PI * 0.8];
+  return (
+    <group position={[x, 0, 0]}>
+      {sxs.map((sx, i) => {
+        const P = [sx, sy, 0];
+        const S = [P[0] - Math.cos(inDir) * L, P[1] - Math.sin(inDir) * L, 0];
+        return <group key={"in" + i}>{beam(S, inDir, L)}</group>;
+      })}
+      {regular
+        ? sxs.map((sx, i) => <group key={"out" + i}>{beam([sx, sy, 0], outDir, L)}</group>)
+        : diffAngles.map((a, i) => <group key={"dif" + i}>{beam([0, sy, 0], a, 0.42, 0.5)}</group>)}
+      <mesh position={[0, sy, sz]}><sphereGeometry args={[0.02, 12, 12]} /><meshBasicMaterial color="#f59e0b" /></mesh>
+    </group>
+  );
+}
+
+/* Friction (mode "slide"): a block is pushed across the active surface — it
+   glides far and smoothly on a low-friction surface, barely budges on a
+   high-friction (rough) one. */
+export function SlideRig({ x, lowFriction }) {
+  const blk = iUR();
+  useFrame((s) => {
+    if (blk.current) blk.current.position.x = Math.sin(s.clock.elapsedTime * (lowFriction ? 1.6 : 3.4)) * (lowFriction ? 0.24 : 0.05);
+  });
+  return (
+    <group position={[x, 0, 0.12]}>
+      <mesh receiveShadow position={[0, 0.02, 0]}>
+        <boxGeometry args={[0.66, 0.03, 0.22]} />
+        <meshStandardMaterial color={lowFriction ? "#bae6fd" : "#a16207"} roughness={lowFriction ? 0.12 : 1} metalness={lowFriction ? 0.35 : 0} />
+      </mesh>
+      <mesh ref={blk} castShadow position={[0, 0.08, 0]}>
+        <boxGeometry args={[0.1, 0.08, 0.1]} />
+        <meshStandardMaterial color="#dc2626" roughness={0.5} />
+      </mesh>
+    </group>
+  );
+}
+
+/* States of matter (mode "states"): a transparent box of particles. In a solid
+   they sit in a vibrating lattice; in a liquid they slip past one another near
+   the bottom; in a gas they fly freely all over the box. */
+export function StatesRig({ x, state }) {
+  const refs = iUR([]);
+  const N = state === "gas" ? 6 : 12;
+  const col = state === "solid" ? "#2563eb" : state === "liquid" ? "#0d9488" : "#ea580c";
+  useFrame((s) => {
+    const t = s.clock.elapsedTime;
+    for (let i = 0; i < N; i++) {
+      const m = refs.current[i];
+      if (!m) continue;
+      if (state === "solid") {
+        const cx = ((i % 4) - 1.5) * 0.078, cy = (Math.floor(i / 4) - 1) * 0.078;
+        m.position.set(cx + Math.sin(t * 9 + i) * 0.006, 0.24 + cy + Math.cos(t * 8 + i * 1.3) * 0.006, 0.12);
+      } else if (state === "liquid") {
+        const cx = ((i % 4) - 1.5) * 0.07, cy = Math.floor(i / 4) * 0.058;
+        m.position.set(cx + Math.sin(t * 1.6 + i) * 0.05, 0.12 + cy + Math.sin(t * 1.2 + i * 2) * 0.02, 0.12 + Math.cos(t * 1.4 + i) * 0.04);
+      } else {
+        const a = i * 1.7;
+        m.position.set(Math.sin(t * 2.4 + a) * 0.15, 0.24 + Math.cos(t * 2.0 + a * 1.3) * 0.13, 0.12 + Math.sin(t * 2.7 + a) * 0.1);
+      }
+    }
+  });
+  return (
+    <group position={[x, 0, 0]}>
+      <mesh position={[0, 0.24, 0.12]}>
+        <boxGeometry args={[0.42, 0.42, 0.34]} />
+        <meshPhysicalMaterial color="#dbeafe" transparent opacity={0.12} transmission={0.7} roughness={0.08} ior={1.3} />
+      </mesh>
+      {Array.from({ length: N }).map((_, i) => (
+        <mesh key={i} ref={(el) => { refs.current[i] = el; }} position={[0, 0.24, 0.12]}>
+          <sphereGeometry args={[0.024, 14, 14]} />
+          <meshStandardMaterial color={col} roughness={0.4} emissive={col} emissiveIntensity={0.15} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
 /* Magnifying glass that hovers over the active mixture. */
 export function Magnifier({ x }) {
   const g = iUR();

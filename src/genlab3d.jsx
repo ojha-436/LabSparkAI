@@ -9,12 +9,139 @@ import { Html } from "@react-three/drei";
 import { C } from "./tokens.js";
 import { Ic, Btn, SparkAvatar, VoiceWaveform } from "./ui.jsx";
 import { GlassMaterial, LabRoom, BenchInstruments, SceneEnv } from "./lab3dscene.jsx";
-import { Item3D, BarMagnet, ConductivityTester, LightRig, ThermoRig, Magnifier, GlowRig } from "./labitems3d.jsx";
+import { Item3D, BarMagnet, ConductivityTester, LightRig, ThermoRig, Magnifier, GlowRig, BurnRig, ReflectRig, SlideRig, StatesRig } from "./labitems3d.jsx";
 import { AskSpark } from "./askspark.jsx";
 import { gradeLab } from "./api.js";
 import { speak, cancelSpeech, loadClipManifest } from "./speech.js";
 
 const { useState: gUS, useEffect: gUE, useRef: gUR, useCallback: gUC } = React;
+
+/* Blend two hex colours → a CSS rgb() string (used to animate the indicator). */
+function hexLerp(a, b, t) {
+  const p = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const [ar, ag, ab] = p(a), [br, bg, bb] = p(b);
+  const m = (x, y) => Math.round(x + (y - x) * t);
+  return `rgb(${m(ar, br)},${m(ag, bg)},${m(ab, bb)})`;
+}
+
+/* Neutralisation station (mode "mix"): a beaker of universal-indicator solution
+   that starts at the sample's nature colour (acidic = red, basic = purple) and
+   turns neutral green as the matching dropper — a base for an acid, an acid for
+   a base — is added. */
+function NeutraliseStation({ activeItem }) {
+  const matRef = gUR(), dropRef = gUR(), prog = gUR(0), lastId = gUR(null);
+  const acidic = activeItem && activeItem.category === "addbase";
+  const startCol = acidic ? "#e8443a" : "#7c3aed";
+  const agentCol = acidic ? "#5a4fc4" : "#e8443a"; // base added to an acid / acid added to a base
+  const H = 0.5, liqH = 0.34;
+  useFrame((s, dt) => {
+    if (!activeItem) { prog.current = 0; return; }
+    if (lastId.current !== activeItem.id) { lastId.current = activeItem.id; prog.current = 0; }
+    prog.current = Math.min(1, prog.current + dt * 0.45);
+    if (matRef.current) {
+      const c = hexLerp(startCol, "#3f9b54", prog.current);
+      matRef.current.color.set(c); matRef.current.emissive.set(c);
+    }
+    if (dropRef.current) {
+      const fall = (s.clock.elapsedTime % 0.7) / 0.7;
+      dropRef.current.position.y = 0.55 - fall * 0.17;
+      dropRef.current.visible = prog.current < 1;
+    }
+  });
+  return (
+    <group position={[0, 0, 0.66]} scale={1.2}>
+      <mesh castShadow position={[0, H / 2, 0]}><cylinderGeometry args={[0.22, 0.2, H, 40, 1, true]} /><GlassMaterial side={2} /></mesh>
+      <mesh position={[0, 0.012, 0]}><cylinderGeometry args={[0.2, 0.2, 0.024, 40]} /><GlassMaterial side={2} /></mesh>
+      <mesh position={[0, H, 0]}><torusGeometry args={[0.22, 0.01, 10, 40]} /><GlassMaterial /></mesh>
+      <mesh position={[0, liqH / 2 + 0.02, 0]}><cylinderGeometry args={[0.198, 0.182, liqH, 40]} /><meshStandardMaterial ref={matRef} color={startCol} emissive={startCol} emissiveIntensity={0.18} transparent opacity={0.78} roughness={0.15} /></mesh>
+      {activeItem && (
+        <>
+          <mesh position={[0, 0.8, 0]}><sphereGeometry args={[0.05, 18, 18]} /><meshStandardMaterial color={agentCol} roughness={0.4} /></mesh>
+          <mesh position={[0, 0.66, 0]}><cylinderGeometry args={[0.016, 0.009, 0.22, 16]} /><GlassMaterial opacity={0.5} /></mesh>
+          <mesh ref={dropRef} position={[0, 0.54, 0]}><sphereGeometry args={[0.016, 12, 12]} /><meshStandardMaterial color={agentCol} transparent opacity={0.9} /></mesh>
+        </>
+      )}
+      <Html position={[0, H + 0.16, 0]} center distanceFactor={3.5} occlude={false}>
+        <div style={{ pointerEvents: "none", fontSize: 11, fontWeight: 700, color: "#fff", background: activeItem ? (acidic ? "#5a4fc4" : "#e8443a") : "rgba(15,23,42,0.8)", padding: "2px 9px", borderRadius: 6, whiteSpace: "nowrap" }}>
+          {activeItem ? (acidic ? "Adding a base →" : "Adding an acid →") : "Universal indicator"}
+        </div>
+      </Html>
+    </group>
+  );
+}
+
+/* Rusting station (mode "rust"): an iron nail stands in a test tube. When the
+   set-up allows rusting (air + moisture) the nail slowly turns rust-brown and
+   dull; when air or moisture is shut out it stays bright and shiny. */
+function RustStation({ activeItem }) {
+  const nailRef = gUR(), prog = gUR(0), lastId = gUR(null);
+  const rusts = activeItem && activeItem.category === "rusts";
+  useFrame((_, dt) => {
+    if (!activeItem) { prog.current = 0; return; }
+    if (lastId.current !== activeItem.id) { lastId.current = activeItem.id; prog.current = 0; }
+    prog.current = Math.min(1, prog.current + dt * 0.4);
+    const m = nailRef.current && nailRef.current.material;
+    if (m) {
+      m.color.set(rusts ? hexLerp("#c3c7cd", "#9a5b32", prog.current) : "#c3c7cd");
+      m.metalness = rusts ? 0.9 * (1 - prog.current * 0.85) : 0.92;
+      m.roughness = rusts ? 0.3 + prog.current * 0.55 : 0.28;
+    }
+  });
+  const H = 0.46;
+  return (
+    <group position={[0, 0, 0.66]} scale={1.2}>
+      {/* test tube */}
+      <mesh position={[0, 0.26, 0]}><cylinderGeometry args={[0.085, 0.085, H, 32, 1, true]} /><GlassMaterial side={2} /></mesh>
+      <mesh position={[0, 0.04, 0]}><sphereGeometry args={[0.085, 24, 16, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2]} /><GlassMaterial side={2} /></mesh>
+      <mesh position={[0, 0.49, 0]}><torusGeometry args={[0.085, 0.008, 10, 32]} /><GlassMaterial /></mesh>
+      {/* a little water at the bottom when moisture is present */}
+      {rusts && <mesh position={[0, 0.1, 0]}><cylinderGeometry args={[0.08, 0.08, 0.12, 28]} /><meshStandardMaterial color="#bfe3f0" transparent opacity={0.55} roughness={0.2} /></mesh>}
+      {/* the iron nail standing upright */}
+      <group rotation={[0, 0, 0.06]}>
+        <mesh ref={nailRef} position={[0, 0.22, 0]}><cylinderGeometry args={[0.013, 0.013, 0.34, 16]} /><meshStandardMaterial color="#c3c7cd" metalness={0.92} roughness={0.28} /></mesh>
+        <mesh position={[0, 0.39, 0]}><cylinderGeometry args={[0.03, 0.03, 0.016, 18]} /><meshStandardMaterial color="#c3c7cd" metalness={0.9} roughness={0.3} /></mesh>
+      </group>
+      <Html position={[0, H + 0.18, 0]} center distanceFactor={3.5} occlude={false}>
+        <div style={{ pointerEvents: "none", fontSize: 11, fontWeight: 700, color: "#fff", background: activeItem ? (rusts ? "#9a5b32" : "#0d9488") : "rgba(15,23,42,0.8)", padding: "2px 9px", borderRadius: 6, whiteSpace: "nowrap" }}>
+          {activeItem ? (rusts ? "Rusting…" : "Stays shiny") : "Iron nail set-up"}
+        </div>
+      </Html>
+    </group>
+  );
+}
+
+/* Tyndall station (mode "tyndall"): a beam of light is shone through the liquid.
+   A true solution stays clear (beam invisible inside), a colloid scatters the
+   light so its path glows (the Tyndall effect), and a suspension is cloudy with
+   particles that settle at the bottom. */
+function TyndallStation({ activeItem }) {
+  const cat = activeItem && activeItem.category;
+  const colloid = cat === "colloid", suspension = cat === "suspension";
+  const liqColor = activeItem ? activeItem.color : "#bfe3f0";
+  const H = 0.5, liqH = 0.34, midY = liqH / 2 + 0.02;
+  return (
+    <group position={[0, 0, 0.66]} scale={1.2}>
+      <mesh castShadow position={[0, H / 2, 0]}><cylinderGeometry args={[0.22, 0.2, H, 40, 1, true]} /><GlassMaterial side={2} /></mesh>
+      <mesh position={[0, 0.012, 0]}><cylinderGeometry args={[0.2, 0.2, 0.024, 40]} /><GlassMaterial side={2} /></mesh>
+      <mesh position={[0, H, 0]}><torusGeometry args={[0.22, 0.01, 10, 40]} /><GlassMaterial /></mesh>
+      <mesh position={[0, midY, 0]}><cylinderGeometry args={[0.198, 0.182, liqH, 40]} /><meshStandardMaterial color={liqColor} transparent opacity={suspension ? 0.92 : colloid ? 0.6 : 0.3} roughness={0.15} /></mesh>
+      {suspension && <mesh position={[0, 0.06, 0]}><cylinderGeometry args={[0.176, 0.176, 0.05, 32]} /><meshStandardMaterial color={liqColor} roughness={1} /></mesh>}
+      {activeItem && (
+        <group position={[-0.42, midY, 0]}>
+          <mesh rotation={[0, 0, Math.PI / 2]}><cylinderGeometry args={[0.05, 0.06, 0.16, 18]} /><meshStandardMaterial color="#1f2937" metalness={0.5} roughness={0.4} /></mesh>
+          <mesh position={[0.09, 0, 0]} rotation={[0, 0, Math.PI / 2]}><cylinderGeometry args={[0.05, 0.05, 0.01, 18]} /><meshStandardMaterial color="#fde047" emissive="#fde047" emissiveIntensity={1.6} /></mesh>
+        </group>
+      )}
+      {activeItem && <mesh position={[-0.3, midY, 0]} rotation={[0, 0, Math.PI / 2]}><cylinderGeometry args={[0.012, 0.012, 0.16, 12]} /><meshBasicMaterial color="#fde047" transparent opacity={0.5} depthWrite={false} /></mesh>}
+      {colloid && <mesh position={[0, midY, 0]} rotation={[0, 0, Math.PI / 2]}><cylinderGeometry args={[0.022, 0.022, 0.4, 14]} /><meshBasicMaterial color="#fef08a" transparent opacity={0.85} depthWrite={false} /></mesh>}
+      <Html position={[0, H + 0.16, 0]} center distanceFactor={3.5} occlude={false}>
+        <div style={{ pointerEvents: "none", fontSize: 11, fontWeight: 700, color: "#fff", background: activeItem ? (colloid ? "#d97706" : suspension ? "#b45309" : "#0284c7") : "rgba(15,23,42,0.8)", padding: "2px 9px", borderRadius: 6, whiteSpace: "nowrap" }}>
+          {activeItem ? (colloid ? "Tyndall beam visible" : suspension ? "Cloudy — settles" : "Clear solution") : "Shine a light"}
+        </div>
+      </Html>
+    </group>
+  );
+}
 
 /* Water station for the solubility lab — the beaker shows the dissolving result. */
 function WaterStation({ activeItem }) {
@@ -67,6 +194,13 @@ function GenScene({ spec, items, active, tested, onExamine }) {
       ))}
       {spec.mode === "magnet" && <BarMagnet activeX={activeX} active={activeIdx >= 0} attracted={!!(activeItem && activeItem.category === "magnetic")} />}
       {spec.mode === "water" && <WaterStation activeItem={activeItem} />}
+      {spec.mode === "mix" && <NeutraliseStation activeItem={activeItem} />}
+      {spec.mode === "rust" && <RustStation activeItem={activeItem} />}
+      {spec.mode === "burn" && activeIdx >= 0 && <BurnRig x={activeX} burning={!!(activeItem && activeItem.category === "combustible")} />}
+      {spec.mode === "reflect" && activeIdx >= 0 && <ReflectRig x={activeX} regular={!!(activeItem && activeItem.category === "regular")} />}
+      {spec.mode === "slide" && activeIdx >= 0 && <SlideRig x={activeX} lowFriction={!!(activeItem && activeItem.category === "low")} />}
+      {spec.mode === "tyndall" && <TyndallStation activeItem={activeItem} />}
+      {spec.mode === "states" && activeIdx >= 0 && <StatesRig x={activeX} state={activeItem.category} />}
       {spec.mode === "examine" && activeIdx >= 0 && <ConductivityTester position={[activeX, 0.0, 0.6]} lit={!!(activeItem && activeItem.category === "metal")} />}
       {spec.mode === "light" && activeIdx >= 0 && <LightRig x={activeX} category={activeItem.category} />}
       {spec.mode === "thermo" && activeIdx >= 0 && <ThermoRig x={activeX} temp={activeItem.temp} />}
