@@ -626,6 +626,31 @@ export function SlideRig({ x, lowFriction }) {
   );
 }
 
+/* Refraction (mode "optics"): three parallel rays pass through the active lens.
+   A convex (converging) lens bends them to meet at a focus; a concave (diverging)
+   lens spreads them apart. */
+export function OpticsRig({ x, converging }) {
+  const z = 0.12, cy = 0.22, fx = 0.42;
+  const ys = [cy - 0.1, cy, cy + 0.1];
+  const beam = (ax, ay, bx, by, op = 0.6) => {
+    const dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy) || 0.001, ang = Math.atan2(dy, dx);
+    return <mesh position={[ax + dx / 2, ay + dy / 2, z]} rotation={[0, 0, ang - Math.PI / 2]}><cylinderGeometry args={[0.006, 0.006, len, 8]} /><meshBasicMaterial color="#fbbf24" transparent opacity={op} depthWrite={false} /></mesh>;
+  };
+  return (
+    <group position={[x, 0, 0]}>
+      {ys.map((y, i) => <group key={"in" + i}>{beam(-0.42, y, 0, y)}</group>)}
+      {converging
+        ? <mesh position={[0, cy, z]} scale={[0.32, 1.3, 0.22]}><sphereGeometry args={[0.12, 20, 20]} /><GlassMaterial /></mesh>
+        : <mesh position={[0, cy, z]}><boxGeometry args={[0.05, 0.34, 0.14]} /><GlassMaterial /></mesh>}
+      {ys.map((y, i) => {
+        const end = converging ? [fx, cy] : [fx, cy + (y - cy) * 2.6];
+        return <group key={"out" + i}>{beam(0, y, end[0], end[1])}</group>;
+      })}
+      {converging && <mesh position={[fx, cy, z]}><sphereGeometry args={[0.02, 12, 12]} /><meshBasicMaterial color="#f59e0b" /></mesh>}
+    </group>
+  );
+}
+
 /* States of matter (mode "states"): a transparent box of particles. In a solid
    they sit in a vibrating lattice; in a liquid they slip past one another near
    the bottom; in a gas they fly freely all over the box. */

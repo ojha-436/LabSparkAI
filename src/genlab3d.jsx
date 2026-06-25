@@ -9,7 +9,7 @@ import { Html } from "@react-three/drei";
 import { C } from "./tokens.js";
 import { Ic, Btn, SparkAvatar, VoiceWaveform } from "./ui.jsx";
 import { GlassMaterial, LabRoom, BenchInstruments, SceneEnv } from "./lab3dscene.jsx";
-import { Item3D, BarMagnet, ConductivityTester, LightRig, ThermoRig, Magnifier, GlowRig, BurnRig, ReflectRig, SlideRig, StatesRig } from "./labitems3d.jsx";
+import { Item3D, BarMagnet, ConductivityTester, LightRig, ThermoRig, Magnifier, GlowRig, BurnRig, ReflectRig, SlideRig, StatesRig, OpticsRig } from "./labitems3d.jsx";
 import { AskSpark } from "./askspark.jsx";
 import { gradeLab } from "./api.js";
 import { speak, cancelSpeech, loadClipManifest } from "./speech.js";
@@ -267,6 +267,7 @@ function GenScene({ spec, items, active, tested, onExamine }) {
       {spec.mode === "states" && activeIdx >= 0 && <StatesRig x={activeX} state={activeItem.category} />}
       {spec.mode === "reagent" && <FoodTestStation activeItem={activeItem} />}
       {spec.mode === "float" && <FloatTank activeItem={activeItem} />}
+      {spec.mode === "optics" && activeIdx >= 0 && <OpticsRig x={activeX} converging={!!(activeItem && activeItem.category === "convex")} />}
       {spec.mode === "examine" && activeIdx >= 0 && <ConductivityTester position={[activeX, 0.0, 0.6]} lit={!!(activeItem && (activeItem.category === "metal" || activeItem.category === "conductor"))} />}
       {spec.mode === "light" && activeIdx >= 0 && <LightRig x={activeX} category={activeItem.category} />}
       {spec.mode === "thermo" && activeIdx >= 0 && <ThermoRig x={activeX} temp={activeItem.temp} />}

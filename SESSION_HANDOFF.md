@@ -8,7 +8,7 @@
 
 LabSpark AI is an **AI-tutored 3D virtual science lab** for NCERT Class 6–10. It is **built and deployed live**. A student enters a 3D lab room, performs an experiment with realistic apparatus, talks to **"Spark"** (a Google Gemini tutor, voice + text), gets AI-graded, and earns a certificate.
 
-- **Status:** production. **34 fully interactive labs** live (CBSE-aligned). Classes 6–9 are **fully built out** with the syllabus's classic Physics & Chemistry practicals; Class 10 remains placeholders. Per-class ready counts: C6 = 10, C7 = 8, C8 = 8, C9 = 8.
+- **Status:** production. **42 fully interactive labs** live (CBSE-aligned). Classes **6–10 are all 100% complete** — every catalogued lab is `ready`, covering the syllabus's classic Physics & Chemistry practicals. Per-class ready counts: C6 = 10, C7 = 8, C8 = 8, C9 = 8, C10 = 8. No placeholders remain.
 - **Live app:** https://gen-lang-client-0686614374.web.app
 - **Repo:** https://github.com/ojha-436/LabSparkAI · **branch** `main` · **last commit** `cb74b20`
 - **Local code:** `D:\google_Xbuild\LabSpark_AI` (moved OFF OneDrive — keep it there).
@@ -88,7 +88,7 @@ deliverable: LabSpark_AI_Pitch_Deck.pptx
 
 ## 4. Lab catalogue (exact, current)
 
-**34 fully interactive (status `ready`):**
+**42 fully interactive (status `ready`):**
 
 | id | Class | Subject | Renderer / mode | Experiment |
 |---|---|---|---|---|
@@ -126,8 +126,16 @@ deliverable: LabSpark_AI_Pitch_Deck.pptx
 | motion-types | 9 | Physics | genlab3d · `inspect` | Uniform vs non-uniform motion |
 | mass-weight | 9 | Physics | genlab3d · `inspect` | Mass vs weight |
 | atom-particles | 9 | Chemistry | genlab3d · `inspect` | Proton / electron / neutron by charge |
+| reactions | 10 | Chemistry | genlab3d · `inspect` | Combination / decomposition / displacement / double |
+| metals-reactivity | 10 | Chemistry | genlab3d · `inspect` | Reactivity series: highly / moderately / least |
+| carbon-compounds | 10 | Chemistry | genlab3d · `inspect` | Hydrocarbon / alcohol / carboxylic acid |
+| salts | 10 | Chemistry | genlab3d · `inspect` | Acidic / basic / neutral salts |
+| lens | 10 | Physics | genlab3d · `optics` | Parallel rays → convex (converge) / concave (diverge) |
+| electricity | 10 | Physics | genlab3d · `inspect` | Series vs parallel circuits |
+| human-eye | 10 | Physics | genlab3d · `inspect` | Myopia vs hypermetropia |
+| magnetic-effects | 10 | Physics | genlab3d · `inspect` | Electric motor vs generator |
 
-**2 placeholders (status `soon`, show "coming soon"):** reactions (10 Chem), lens (10 Phys).
+**0 placeholders** — every catalogued lab (Classes 6–10) is now `ready`. (Future scope: a Biology subject track — cell, nutrition, microorganisms — which needs new 3D models + a dashboard subject tab.)
 
 ---
 
@@ -160,6 +168,7 @@ deliverable: LabSpark_AI_Pitch_Deck.pptx
 - `reagent` → `FoodTestStation` (a spotting tile + reagent dropper; the well lerps to the test's positive colour — blue-black starch / violet protein / oily-yellow fat — `genlab3d.jsx`)
 - `float` → `FloatTank` (the sample bobs at the water surface if it floats, sinks to the bottom if denser than water — `genlab3d.jsx`)
 - `examine` now lights the `ConductivityTester` bulb for category `metal` **or** `conductor` (so it serves both the metals lab and the conducting-liquids lab)
+- `optics` → `OpticsRig` (three parallel rays pass through a lens glyph — converge to a focus for a convex lens, spread apart for a concave lens — `labitems3d.jsx`)
 
 **Available `shape` models** (`SHAPES` map in `labitems3d.jsx`): nail, pin, coin, foil, wire, ruler, strip, ribbon, lump, slab, frosted, sheet, block, panel, cup, fan, pendulum, swing, car, top, ball, orb, bulb, candle, spoon, powder, grains, crystal, liquid, mixture, specks. Need a new look? Add a model fn + register it in `SHAPES`. Animated shapes read the `active` prop.
 
