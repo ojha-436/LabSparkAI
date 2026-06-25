@@ -8,7 +8,7 @@
 
 LabSpark AI is an **AI-tutored 3D virtual science lab** for NCERT Class 6–10. It is **built and deployed live**. A student enters a 3D lab room, performs an experiment with realistic apparatus, talks to **"Spark"** (a Google Gemini tutor, voice + text), gets AI-graded, and earns a certificate.
 
-- **Status:** production. **22 fully interactive labs** live. Class 6 (3 Chem + 3 Phys), Class 7 (3 Chem + 2 Phys), Class 8 (3 Chem + 2 Phys) and Class 9 (3 Chem + 2 Phys) are **100% complete** — every catalogued Class 6–9 lab is `ready`. Class 10 remains placeholders.
+- **Status:** production. **34 fully interactive labs** live (CBSE-aligned). Classes 6–9 are **fully built out** with the syllabus's classic Physics & Chemistry practicals; Class 10 remains placeholders. Per-class ready counts: C6 = 10, C7 = 8, C8 = 8, C9 = 8.
 - **Live app:** https://gen-lang-client-0686614374.web.app
 - **Repo:** https://github.com/ojha-436/LabSparkAI · **branch** `main` · **last commit** `cb74b20`
 - **Local code:** `D:\google_Xbuild\LabSpark_AI` (moved OFF OneDrive — keep it there).
@@ -88,7 +88,7 @@ deliverable: LabSpark_AI_Pitch_Deck.pptx
 
 ## 4. Lab catalogue (exact, current)
 
-**22 fully interactive (status `ready`):**
+**34 fully interactive (status `ready`):**
 
 | id | Class | Subject | Renderer / mode | Experiment |
 |---|---|---|---|---|
@@ -114,6 +114,18 @@ deliverable: LabSpark_AI_Pitch_Deck.pptx
 | elements-compounds | 9 | Chemistry | genlab3d · `inspect` | Classify element / compound / mixture |
 | force | 9 | Physics | genlab3d · `inspect` | Newton's first / second / third law |
 | energy | 9 | Physics | genlab3d · `inspect` | Kinetic vs potential energy |
+| food-components | 6 | Chemistry | genlab3d · `reagent` | Food tests → starch / protein / fat |
+| water-states | 6 | Chemistry | genlab3d · `inspect` | Evaporation / condensation / freezing |
+| fibre-fabric | 6 | Chemistry | genlab3d · `inspect` | Plant / animal / synthetic fibre |
+| float-sink | 6 | Physics | genlab3d · `float` | Floats / sinks in a water tank |
+| electric-effects | 7 | Physics | genlab3d · `inspect` | Heating vs magnetic effect of current |
+| heat-conductors | 7 | Physics | genlab3d · `inspect` | Good vs poor conductors of heat |
+| sound | 8 | Physics | genlab3d · `inspect` | Audible / ultrasonic / infrasonic |
+| liquids-conduct | 8 | Physics | genlab3d · `examine` | Liquids: conducts / does not conduct |
+| force-pressure | 8 | Physics | genlab3d · `inspect` | Contact vs non-contact force |
+| motion-types | 9 | Physics | genlab3d · `inspect` | Uniform vs non-uniform motion |
+| mass-weight | 9 | Physics | genlab3d · `inspect` | Mass vs weight |
+| atom-particles | 9 | Chemistry | genlab3d · `inspect` | Proton / electron / neutron by charge |
 
 **2 placeholders (status `soon`, show "coming soon"):** reactions (10 Chem), lens (10 Phys).
 
@@ -145,6 +157,9 @@ deliverable: LabSpark_AI_Pitch_Deck.pptx
 - `slide` → `SlideRig` (a block slides on the surface — glides far on low friction, barely moves on high — `labitems3d.jsx`)
 - `tyndall` → `TyndallStation` (a beam crosses the beaker — invisible in a true solution, scatters/glows in a colloid, cloudy + settling in a suspension — `genlab3d.jsx`)
 - `states` → `StatesRig` (a transparent box of particles — vibrating lattice (solid), loose drifting (liquid), free flight (gas) — `labitems3d.jsx`)
+- `reagent` → `FoodTestStation` (a spotting tile + reagent dropper; the well lerps to the test's positive colour — blue-black starch / violet protein / oily-yellow fat — `genlab3d.jsx`)
+- `float` → `FloatTank` (the sample bobs at the water surface if it floats, sinks to the bottom if denser than water — `genlab3d.jsx`)
+- `examine` now lights the `ConductivityTester` bulb for category `metal` **or** `conductor` (so it serves both the metals lab and the conducting-liquids lab)
 
 **Available `shape` models** (`SHAPES` map in `labitems3d.jsx`): nail, pin, coin, foil, wire, ruler, strip, ribbon, lump, slab, frosted, sheet, block, panel, cup, fan, pendulum, swing, car, top, ball, orb, bulb, candle, spoon, powder, grains, crystal, liquid, mixture, specks. Need a new look? Add a model fn + register it in `SHAPES`. Animated shapes read the `active` prop.
 

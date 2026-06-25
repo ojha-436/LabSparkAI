@@ -331,6 +331,62 @@ const CATALOG = [
     diff: "Hard", mins: 15, xp: 140, c: C.violet, status: "soon", icon: "eye",
     blurb: "Trace light rays through convex and concave lenses.",
     chapter: "Ch 10 · Light – Reflection & Refraction" },
+
+  /* ── Class 6 — extra labs ── */
+  { id: "food-components", name: "Testing the Components of Food", cls: "Class 6", subject: "Chemistry",
+    diff: "Easy", mins: 11, xp: 100, c: C.violet, status: "ready", icon: "beaker",
+    blurb: "Use iodine and Biuret reagent to find starch, protein and fat in foods.",
+    chapter: "Components of Food (Mindful Eating)" },
+  { id: "water-states", name: "States & Changes of Water", cls: "Class 6", subject: "Chemistry",
+    diff: "Easy", mins: 9, xp: 80, c: C.sky, status: "ready", icon: "drop",
+    blurb: "Spot evaporation, condensation and freezing in everyday situations.",
+    chapter: "A Journey through States of Water" },
+  { id: "fibre-fabric", name: "Natural & Synthetic Fibres", cls: "Class 6", subject: "Chemistry",
+    diff: "Easy", mins: 9, xp: 80, c: C.em, status: "ready", icon: "grid",
+    blurb: "Sort fabrics into plant, animal and man-made synthetic fibres.",
+    chapter: "Fibre to Fabric" },
+  { id: "float-sink", name: "Sinking & Floating", cls: "Class 6", subject: "Physics",
+    diff: "Easy", mins: 8, xp: 80, c: C.sky, status: "ready", icon: "beaker",
+    blurb: "Drop objects into water and find out which float and which sink.",
+    chapter: "Sorting Materials (Materials Around Us)" },
+
+  /* ── Class 7 — extra labs ── */
+  { id: "electric-effects", name: "Effects of Electric Current", cls: "Class 7", subject: "Physics",
+    diff: "Easy", mins: 10, xp: 90, c: C.coral, status: "ready", icon: "bolt",
+    blurb: "Sort appliances by the heating and magnetic effects of electric current.",
+    chapter: "Electric Current and its Effects" },
+  { id: "heat-conductors", name: "Conductors & Insulators of Heat", cls: "Class 7", subject: "Physics",
+    diff: "Easy", mins: 9, xp: 90, c: C.emDeep, status: "ready", icon: "spark",
+    blurb: "Find which materials carry heat well and which keep it out.",
+    chapter: "Heat — Transfer of Heat" },
+
+  /* ── Class 8 — extra labs ── */
+  { id: "sound", name: "Audible, Ultrasonic & Infrasonic Sound", cls: "Class 8", subject: "Physics",
+    diff: "Medium", mins: 10, xp: 100, c: C.violet, status: "ready", icon: "spark",
+    blurb: "Classify sounds by frequency into what we can and cannot hear.",
+    chapter: "Ch 10 · Sound" },
+  { id: "liquids-conduct", name: "Do Liquids Conduct Electricity?", cls: "Class 8", subject: "Physics",
+    diff: "Medium", mins: 10, xp: 100, c: C.sky, status: "ready", icon: "bolt",
+    blurb: "Dip a tester into liquids to see which conduct electricity.",
+    chapter: "Ch 11 · Chemical Effects of Electric Current" },
+  { id: "force-pressure", name: "Contact & Non-Contact Forces", cls: "Class 8", subject: "Physics",
+    diff: "Easy", mins: 9, xp: 90, c: C.emDeep, status: "ready", icon: "target",
+    blurb: "Decide whether each everyday force acts by touch or across a gap.",
+    chapter: "Ch 8 · Force and Pressure" },
+
+  /* ── Class 9 — extra labs ── */
+  { id: "motion-types", name: "Uniform & Non-Uniform Motion", cls: "Class 9", subject: "Physics",
+    diff: "Medium", mins: 10, xp: 100, c: C.sky, status: "ready", icon: "refresh",
+    blurb: "Tell steady motion apart from changing, accelerating motion.",
+    chapter: "Ch 8 · Motion" },
+  { id: "mass-weight", name: "Mass & Weight", cls: "Class 9", subject: "Physics",
+    diff: "Medium", mins: 9, xp: 90, c: C.violet, status: "ready", icon: "globe",
+    blurb: "Clear up the confusion between mass and weight with examples.",
+    chapter: "Ch 10 · Gravitation" },
+  { id: "atom-particles", name: "Particles of the Atom", cls: "Class 9", subject: "Chemistry",
+    diff: "Medium", mins: 10, xp: 100, c: C.coral, status: "ready", icon: "atom",
+    blurb: "Sort protons, electrons and neutrons by their electric charge.",
+    chapter: "Ch 4 · Structure of the Atom" },
 ];
 
 const CIRCUIT_MATERIALS = [

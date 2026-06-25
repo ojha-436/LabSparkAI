@@ -143,6 +143,70 @@ function TyndallStation({ activeItem }) {
   );
 }
 
+/* Food-test station (mode "reagent"): a drop of the test reagent is added to the
+   food sample in a spotting tile and the well turns the test's positive colour —
+   blue-black for starch (iodine), violet for protein (Biuret), oily yellow for fat. */
+function FoodTestStation({ activeItem }) {
+  const matRef = gUR(), prog = gUR(0), lastId = gUR(null), dropRef = gUR();
+  const cat = activeItem && activeItem.category;
+  const resultCol = cat === "starch" ? "#312e81" : cat === "protein" ? "#7c3aed" : "#eab308";
+  const reagent = cat === "starch" ? "Add iodine →" : cat === "protein" ? "Add Biuret reagent →" : "Rub on paper →";
+  useFrame((s, dt) => {
+    if (!activeItem) { prog.current = 0; return; }
+    if (lastId.current !== activeItem.id) { lastId.current = activeItem.id; prog.current = 0; }
+    prog.current = Math.min(1, prog.current + dt * 0.5);
+    if (matRef.current) matRef.current.color.set(hexLerp("#f5f5f4", resultCol, prog.current));
+    if (dropRef.current) { const f = (s.clock.elapsedTime % 0.7) / 0.7; dropRef.current.position.y = 0.34 - f * 0.2; dropRef.current.visible = prog.current < 1; }
+  });
+  return (
+    <group position={[0, 0, 0.6]} scale={1.2}>
+      <mesh position={[0, 0.04, 0]}><boxGeometry args={[0.5, 0.07, 0.34]} /><meshStandardMaterial color="#e7e5e4" roughness={0.7} /></mesh>
+      {[-0.15, 0.15].map((px) => (
+        <mesh key={px} position={[px, 0.078, 0]}><cylinderGeometry args={[0.055, 0.055, 0.03, 24]} /><meshStandardMaterial color="#d6d3d1" roughness={0.6} /></mesh>
+      ))}
+      <mesh position={[0, 0.082, 0]}><cylinderGeometry args={[0.06, 0.06, 0.032, 28]} /><meshStandardMaterial ref={matRef} color="#f5f5f4" roughness={0.45} /></mesh>
+      {activeItem && (<>
+        <mesh position={[0, 0.46, 0]}><sphereGeometry args={[0.05, 16, 16]} /><meshStandardMaterial color={cat === "fat" ? "#cbd5e1" : resultCol} roughness={0.4} /></mesh>
+        <mesh position={[0, 0.34, 0]}><cylinderGeometry args={[0.016, 0.009, 0.2, 12]} /><GlassMaterial opacity={0.5} /></mesh>
+        <mesh ref={dropRef} position={[0, 0.22, 0]}><sphereGeometry args={[0.015, 12, 12]} /><meshStandardMaterial color={cat === "fat" ? "#fde68a" : resultCol} transparent opacity={0.9} /></mesh>
+      </>)}
+      <Html position={[0, 0.56, 0]} center distanceFactor={3.5} occlude={false}>
+        <div style={{ pointerEvents: "none", fontSize: 11, fontWeight: 700, color: "#fff", background: activeItem ? (cat === "starch" ? "#312e81" : cat === "protein" ? "#7c3aed" : "#a16207") : "rgba(15,23,42,0.8)", padding: "2px 9px", borderRadius: 6, whiteSpace: "nowrap" }}>
+          {activeItem ? reagent : "Food test tile"}
+        </div>
+      </Html>
+    </group>
+  );
+}
+
+/* Float tank (mode "float"): the sample is dropped into a water tank — it bobs on
+   the surface if it floats, or sinks to the bottom if it is denser than water. */
+function FloatTank({ activeItem }) {
+  const obj = gUR(), lastId = gUR(null);
+  const floats = activeItem && activeItem.category === "float";
+  const H = 0.5, liqH = 0.36;
+  useFrame((s) => {
+    if (!obj.current || !activeItem) return;
+    if (lastId.current !== activeItem.id) { lastId.current = activeItem.id; obj.current.position.y = 0.52; }
+    const target = floats ? liqH + Math.sin(s.clock.elapsedTime * 2) * 0.012 : 0.08;
+    obj.current.position.y += (target - obj.current.position.y) * 0.08;
+  });
+  return (
+    <group position={[0, 0, 0.66]} scale={1.2}>
+      <mesh castShadow position={[0, H / 2, 0]}><cylinderGeometry args={[0.22, 0.2, H, 40, 1, true]} /><GlassMaterial side={2} /></mesh>
+      <mesh position={[0, 0.012, 0]}><cylinderGeometry args={[0.2, 0.2, 0.024, 40]} /><GlassMaterial side={2} /></mesh>
+      <mesh position={[0, H, 0]}><torusGeometry args={[0.22, 0.01, 10, 40]} /><GlassMaterial /></mesh>
+      <mesh position={[0, liqH / 2 + 0.02, 0]}><cylinderGeometry args={[0.198, 0.182, liqH, 40]} /><meshStandardMaterial color="#bfe3f0" transparent opacity={0.55} roughness={0.15} /></mesh>
+      {activeItem && <mesh ref={obj} castShadow position={[0, 0.52, 0]}><boxGeometry args={[0.12, 0.1, 0.12]} /><meshStandardMaterial color={activeItem.color} roughness={0.5} metalness={0.1} /></mesh>}
+      <Html position={[0, H + 0.16, 0]} center distanceFactor={3.5} occlude={false}>
+        <div style={{ pointerEvents: "none", fontSize: 11, fontWeight: 700, color: "#fff", background: activeItem ? (floats ? "#0d9488" : "#b45309") : "rgba(15,23,42,0.8)", padding: "2px 9px", borderRadius: 6, whiteSpace: "nowrap" }}>
+          {activeItem ? (floats ? "Floats" : "Sinks") : "Tank of water"}
+        </div>
+      </Html>
+    </group>
+  );
+}
+
 /* Water station for the solubility lab — the beaker shows the dissolving result. */
 function WaterStation({ activeItem }) {
   const soluble = activeItem && activeItem.category === "soluble";
@@ -201,7 +265,9 @@ function GenScene({ spec, items, active, tested, onExamine }) {
       {spec.mode === "slide" && activeIdx >= 0 && <SlideRig x={activeX} lowFriction={!!(activeItem && activeItem.category === "low")} />}
       {spec.mode === "tyndall" && <TyndallStation activeItem={activeItem} />}
       {spec.mode === "states" && activeIdx >= 0 && <StatesRig x={activeX} state={activeItem.category} />}
-      {spec.mode === "examine" && activeIdx >= 0 && <ConductivityTester position={[activeX, 0.0, 0.6]} lit={!!(activeItem && activeItem.category === "metal")} />}
+      {spec.mode === "reagent" && <FoodTestStation activeItem={activeItem} />}
+      {spec.mode === "float" && <FloatTank activeItem={activeItem} />}
+      {spec.mode === "examine" && activeIdx >= 0 && <ConductivityTester position={[activeX, 0.0, 0.6]} lit={!!(activeItem && (activeItem.category === "metal" || activeItem.category === "conductor"))} />}
       {spec.mode === "light" && activeIdx >= 0 && <LightRig x={activeX} category={activeItem.category} />}
       {spec.mode === "thermo" && activeIdx >= 0 && <ThermoRig x={activeX} temp={activeItem.temp} />}
       {spec.mode === "inspect" && activeIdx >= 0 && <Magnifier x={activeX} />}
