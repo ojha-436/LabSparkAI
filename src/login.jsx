@@ -3,9 +3,10 @@ import React from "react";
 import { C } from "./tokens.js";
 import { Ic } from "./ui.jsx";
 import firebase from "./firebaseInit.js";
+import { RoleChooser } from "./roles.jsx";
 const { useState: loUS } = React;
 
-function LoginPage({ onLogin, onBack }) {
+function LoginPage({ onLogin, onBack, onRoleHint }) {
   const [activeTab, setActiveTab] = loUS("signin"); // signin | signup
   const [email, setEmail] = loUS("");
   const [pass, setPass] = loUS("");
@@ -13,10 +14,12 @@ function LoginPage({ onLogin, onBack }) {
   const [loading, setLoading] = loUS(false);
   const [loadingGoogle, setLoadingGoogle] = loUS(false);
   const [error, setError] = loUS("");
+  const [role, setRole] = loUS("student");
 
   const handleEmailSubmit = (e) => {
     e.preventDefault();
     setError("");
+    if (onRoleHint) onRoleHint(role, name); // capture role + name before auth state changes
 
     if (activeTab === "signup" && !name.trim()) {
       setError("Please enter your full name.");
@@ -38,7 +41,7 @@ function LoginPage({ onLogin, onBack }) {
           return userCredential.user.updateProfile({ displayName: name })
             .then(() => {
               setLoading(false);
-              onLogin(name);
+              onLogin(name, role);
             });
         })
         .catch((err) => {
@@ -49,7 +52,7 @@ function LoginPage({ onLogin, onBack }) {
       firebase.auth().signInWithEmailAndPassword(email, pass)
         .then((userCredential) => {
           setLoading(false);
-          onLogin(userCredential.user.displayName || userCredential.user.email);
+          onLogin(userCredential.user.displayName || userCredential.user.email, role);
         })
         .catch((err) => {
           setLoading(false);
@@ -60,12 +63,13 @@ function LoginPage({ onLogin, onBack }) {
 
   const handleGoogleSubmit = () => {
     setError("");
+    if (onRoleHint) onRoleHint(role);
     setLoadingGoogle(true);
     const provider = new firebase.auth.GoogleAuthProvider();
     firebase.auth().signInWithPopup(provider)
       .then((result) => {
         setLoadingGoogle(false);
-        onLogin(result.user.displayName || result.user.email);
+        onLogin(result.user.displayName || result.user.email, role);
       })
       .catch((err) => {
         setLoadingGoogle(false);
@@ -136,6 +140,14 @@ function LoginPage({ onLogin, onBack }) {
                 Sign Up
               </button>
             </div>
+
+            {/* Role chooser (sign-up only) */}
+            {activeTab === "signup" && (
+              <div style={{ marginBottom: 20 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: C.ink70, display: "block", marginBottom: 8 }}>I am a…</span>
+                <RoleChooser value={role} onChange={setRole} />
+              </div>
+            )}
 
             {/* Google Authentication Trigger */}
             <button 

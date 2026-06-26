@@ -10,6 +10,15 @@ LabSpark AI is an **AI-tutored 3D virtual science lab** for NCERT Class 6–10. 
 
 - **Status:** production. **42 fully interactive labs** live (CBSE-aligned). Classes **6–10 are all 100% complete** — every catalogued lab is `ready`, covering the syllabus's classic Physics & Chemistry practicals. Per-class ready counts: C6 = 10, C7 = 8, C8 = 8, C9 = 8, C10 = 8. No placeholders remain.
 - **Revenue-engine layer (Step 1 — done, deployed):** teacher/class layer + auto-generated CBSE practical-file PDF. See "Classroom & Practical File" section below.
+- **Roles + relationship graph (Step 1.5 — done, deployed, E2E-verified):** Student / Teacher / Parent chosen at sign-up → role-specific home. Teacher⇄Student via class code; Parent⇄Student via family code. Live teacher roster, class announcement/post stream, privacy-safe parent progress view. See "Roles, Dashboards & Family Graph" section below.
+
+## Roles, Dashboards & Family Graph
+
+- **Role at sign-up:** `RoleChooser`/`RoleSetupPage` in `roles.jsx`; `login.jsx` captures role+name via `onRoleHint(role,name)` BEFORE auth fires (race-free, set in `app.jsx` `pendingRoleRef`/`pendingNameRef`). `users/{uid}.role` ∈ student|teacher|parent. `app.jsx` `homeFor(role)` routes: teacher→TeacherPage, parent→ParentDashboard, student→Dashboard; missing role→`RoleSetupPage`.
+- **Teacher⇄Student:** class code (existing). **Live roster/submissions/stream** via `onSnapshot` (`watchRoster/watchSubmissions/watchPosts` in `classroom.js`). **Class stream** = `classes/{code}/posts` (announcements by teacher, messages by members) — `ClassStream` component used in the teacher `ClassDetail` (Students/Stream tabs) and the student `StudentClassView` (open a joined class).
+- **Parent⇄Student:** `family.js` — student has a 6-char **family code** (`familyCodes/{CODE}`→studentUid, + `ensureFamilyCode`); student writes a parent-readable **progress mirror** `students/{uid}` (`writeStudentMirror`, refreshed in `persist()` and on completion). Parent links via the code (`linkChild` → `students/{uid}/guardians/{parentUid}` validated against the code in rules); `ParentDashboard` (`parent.jsx`) reads each child's mirror — **no lab catalogue**, just XP/level/labs/scores. Student shows the code on `InviteParentPage`.
+- **⚠️ Firestore "rules are not filters" — critical:** teacher reads of `members`/`submissions` are authorised by `resource.data.teacherUid`, so the **client query MUST filter `.where("teacherUid","==",uid)`** or the whole query is permission-denied. This was the real "teacher can't see joined students" bug. `classroom.js` `teacherMembers/teacherSubs` apply the filter. Any new teacher-scoped query must do the same.
+- **Verified E2E (Playwright, live Firestore + deployed rules):** teacher signup→class create; student signup→join (visible to teacher: "1 student joined"); announcement posts to the stream; parent signup→link by family code→sees child "Aarav Sharma" Level 1. New rules deployed.
 
 ## Classroom & Practical File (the B2B wedge)
 

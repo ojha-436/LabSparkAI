@@ -9,8 +9,11 @@ import { Lab3D } from "./lab3d.jsx";
 import { CircuitLab } from "./circuitlab.jsx";
 import { Report } from "./report.jsx";
 import { ProfilePage, ProgressPage, AchievementsPage } from "./profile.jsx";
-import { PracticalFilePage, JoinClassPage, TeacherPage } from "./classroom.jsx";
+import { PracticalFilePage, JoinClassPage, TeacherPage, InviteParentPage } from "./classroom.jsx";
 import { writeSubmission } from "./classroom.js";
+import { ParentDashboard } from "./parent.jsx";
+import { RoleSetupPage } from "./roles.jsx";
+import { ensureFamilyCode, writeStudentMirror } from "./family.js";
 import { GenLab3D } from "./genlab3d.jsx";
 import { GEN_LABS } from "./genlabdata.js";
 import { CATALOG } from "./data.js";
@@ -19,8 +22,12 @@ const { useState: aUS } = React;
 
 const DEFAULT_STUDENT = {
   name: "Scientist", level: 1, xp: 0, done: 0, badges: 0, streak: 1, email: "student@labspark.ai",
+  role: "", familyCode: "", children: [],
   school: "", klass: "", section: "", parentName: "", mobile: "", city: "", rollNo: "", photoData: null, completions: [], classes: [],
 };
+
+// Which home view a role lands on after login.
+const homeFor = (role) => (role === "teacher" ? "teacher" : role === "parent" ? "parent" : "dashboard");
 
 function App() {
   const [view, setView] = aUS("landing");
@@ -35,6 +42,8 @@ function App() {
   // between in-app views (e.g. lab → dashboard) instead of leaving the site.
   const popRef = React.useRef(false);
   const firstRef = React.useRef(true);
+  const pendingRoleRef = React.useRef(""); // role chosen on the sign-up screen, captured before auth fires
+  const pendingNameRef = React.useRef(""); // name entered on sign-up, captured before displayName propagates
   React.useEffect(() => {
     window.history.replaceState({ view: "landing" }, "");
     const onPop = (e) => { popRef.current = true; setView((e.state && e.state.view) || "landing"); };
@@ -47,6 +56,19 @@ function App() {
     window.history.pushState({ view }, "");
   }, [view]);
 
+  // For a student: make sure they have a shareable family code + a parent-readable mirror.
+  const initStudent = async (data, ref) => {
+    try {
+      if (!data.familyCode) {
+        const code = await ensureFamilyCode(data);
+        if (code) { ref.set({ familyCode: code }, { merge: true }).catch(() => {}); setStudent((s) => ({ ...s, familyCode: code })); }
+      }
+      writeStudentMirror(data);
+    } catch { /* ignore */ }
+  };
+
+  const logout = () => { firebase.auth().signOut().catch(() => {}); };
+
   React.useEffect(() => {
     const unsubscribe = firebase.auth().onAuthStateChanged(async (user) => {
       if (user) {
@@ -55,21 +77,30 @@ function App() {
           name: user.displayName || (user.email ? user.email.split("@")[0] : "Scientist"),
           email: user.email || "student@labspark.ai",
         };
-        // Load persisted progress from Firestore (creates the doc on first login).
+        // Load the account from Firestore (creates the doc on first login).
         try {
           const ref = db.collection("users").doc(user.uid);
           const snap = await ref.get();
+          let data;
           if (snap.exists) {
-            setStudent({ ...DEFAULT_STUDENT, ...snap.data(), ...base });
+            const d = snap.data();
+            // Keep the stored name; only fall back to displayName/email if it's empty.
+            data = { ...DEFAULT_STUDENT, ...d, email: base.email, name: d.name || pendingNameRef.current || base.name };
           } else {
-            const fresh = { ...DEFAULT_STUDENT, ...base };
-            setStudent(fresh);
-            ref.set(fresh).catch(() => {});
+            data = { ...DEFAULT_STUDENT, email: base.email, name: pendingNameRef.current || base.name, role: pendingRoleRef.current || "" };
+            ref.set(data, { merge: true }).catch(() => {});
+          }
+          setStudent(data);
+          if (!data.role) {
+            setView("rolesetup"); // legacy/unknown — ask once
+          } else {
+            if (data.role === "student") initStudent(data, ref);
+            setView(homeFor(data.role));
           }
         } catch {
           setStudent((s) => ({ ...s, ...base }));
+          setView("dashboard");
         }
-        setView("dashboard");
       } else {
         setUid(null);
         setView((currentView) => (currentView === "login" ? currentView : "landing"));
@@ -83,13 +114,15 @@ function App() {
     if (!uid) return;
     db.collection("users").doc(uid)
       .set({
-        name: next.name, school: next.school || "", klass: next.klass || "", section: next.section || "",
+        name: next.name, role: next.role || "", school: next.school || "", klass: next.klass || "", section: next.section || "",
         parentName: next.parentName || "", mobile: next.mobile || "", city: next.city || "", rollNo: next.rollNo || "",
-        photoData: next.photoData || null,
+        photoData: next.photoData || null, familyCode: next.familyCode || "", children: next.children || [],
         xp: next.xp, level: next.level, done: next.done, badges: next.badges, streak: next.streak,
         completions: next.completions || [], classes: next.classes || [],
       }, { merge: true })
       .catch(() => {});
+    // Keep the parent-readable mirror in sync for students.
+    if ((next.role || "student") === "student") writeStudentMirror(next);
   };
 
   const saveProfile = (partial) => {
@@ -151,6 +184,27 @@ function App() {
     });
   };
 
+  // Role chosen on the setup screen (legacy/unknown users).
+  const chooseRole = (role) => {
+    setStudent((s) => {
+      const next = { ...s, role };
+      persist(next);
+      if (role === "student" && uid) initStudent(next, db.collection("users").doc(uid));
+      return next;
+    });
+    setView(homeFor(role));
+  };
+
+  // Parent linked a child via the family code.
+  const onAddChild = (child) => {
+    setStudent((s) => {
+      const children = [...(s.children || []).filter((c) => c.studentUid !== child.studentUid), child];
+      const next = { ...s, children };
+      persist(next);
+      return next;
+    });
+  };
+
   // Re-open a stored certificate from the Achievements page.
   const viewCertificate = (c) => {
     const id = c.experimentId || c.id;
@@ -167,13 +221,15 @@ function App() {
       )}
       
       {view === "login" && (
-        <LoginPage 
-          onLogin={(studentName) => {
-            setStudent((s) => ({ ...s, name: studentName }));
-            setView("dashboard");
-          }} 
-          onBack={() => setView("landing")} 
+        <LoginPage
+          onLogin={(studentName) => { setStudent((s) => ({ ...s, name: studentName })); }}
+          onRoleHint={(r, n) => { pendingRoleRef.current = r; if (n) pendingNameRef.current = n; }}
+          onBack={() => setView("landing")}
         />
+      )}
+
+      {view === "rolesetup" && (
+        <RoleSetupPage name={student.name} onPick={chooseRole} />
       )}
       
       {view === "dashboard" && (
@@ -186,7 +242,8 @@ function App() {
           onOpenAchievements={() => setView("achievements")}
           onOpenPractical={() => setView("practical")}
           onOpenJoin={() => setView("join")}
-          onOpenTeacher={() => setView("teacher")}
+          onOpenFamily={() => setView("family")}
+          onLogout={logout}
         />
       )}
 
@@ -210,8 +267,16 @@ function App() {
         <JoinClassPage student={student} onBack={() => setView("dashboard")} onJoined={onJoined} />
       )}
 
+      {view === "family" && (
+        <InviteParentPage student={student} onBack={() => setView("dashboard")} />
+      )}
+
       {view === "teacher" && (
-        <TeacherPage student={student} onBack={() => setView("dashboard")} />
+        <TeacherPage student={student} onBack={logout} />
+      )}
+
+      {view === "parent" && (
+        <ParentDashboard student={student} onBack={logout} onAddChild={onAddChild} />
       )}
       
       {view === "lab" && (

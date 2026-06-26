@@ -57,14 +57,43 @@ export async function joinClass(code, student) {
   return { code: cls.code, className: cls.className, teacherUid: cls.teacherUid, school: cls.school, grade: cls.grade };
 }
 
+// Firestore "rules are not filters": the teacher read rule authorises by
+// resource.data.teacherUid, so the query MUST filter by teacherUid == my uid.
+const myUid = () => (firebase.auth().currentUser && firebase.auth().currentUser.uid) || "__none__";
+const teacherMembers = (code) => db.collection("classes").doc(code).collection("members").where("teacherUid", "==", myUid());
+const teacherSubs = (code) => db.collection("classes").doc(code).collection("submissions").where("teacherUid", "==", myUid());
+
 export async function getRoster(code) {
-  const q = await db.collection("classes").doc(code).collection("members").get();
+  const q = await teacherMembers(code).get();
   return q.docs.map((d) => d.data());
 }
 
 export async function getSubmissions(code) {
-  const q = await db.collection("classes").doc(code).collection("submissions").get();
+  const q = await teacherSubs(code).get();
   return q.docs.map((d) => d.data());
+}
+
+/* Live listeners — return an unsubscribe fn. Teacher dashboards use these so a
+   student joining / submitting / posting shows up in real time. */
+export function watchRoster(code, cb) {
+  return teacherMembers(code).onSnapshot((q) => cb(q.docs.map((d) => d.data())), () => {});
+}
+export function watchSubmissions(code, cb) {
+  return teacherSubs(code).onSnapshot((q) => cb(q.docs.map((d) => d.data())), () => {});
+}
+export function watchPosts(code, cb) {
+  return db.collection("classes").doc(code).collection("posts").onSnapshot(
+    (q) => cb(q.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))),
+    () => {}
+  );
+}
+
+/* Post to a class stream — an announcement (teacher) or a message (student). */
+export async function addPost(code, { authorUid, authorName, authorRole, type, text }) {
+  await db.collection("classes").doc(code).collection("posts").add({
+    authorUid, authorName: authorName || "User", authorRole: authorRole || "student",
+    type: type || "post", text: (text || "").slice(0, 2000), createdAt: Date.now(),
+  });
 }
 
 /* Mirror a completed lab into a class the student has joined (called per membership). */

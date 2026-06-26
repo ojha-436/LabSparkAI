@@ -4,10 +4,64 @@ import { C } from "./tokens.js";
 import { Ic, Btn } from "./ui.jsx";
 import { PageShell } from "./profile.jsx";
 import firebase from "./firebaseInit.js";
-import { createClass, listMyClasses, joinClass, getRoster, getSubmissions } from "./classroom.js";
+import { createClass, listMyClasses, joinClass, watchRoster, watchSubmissions, watchPosts, addPost } from "./classroom.js";
+import { ensureFamilyCode } from "./family.js";
 import { downloadPracticalFile, downloadLabRecord } from "./practicalfile.js";
 
 const { useState: cUS, useEffect: cUE } = React;
+const meNow = () => { const u = firebase.auth().currentUser; return u ? u.uid : null; };
+
+/* ── Class stream: announcements (teacher) + posts (students), live ── */
+function ClassStream({ code, name, role }) {
+  const [posts, setPosts] = cUS([]);
+  const [text, setText] = cUS("");
+  const isTeacher = role === "teacher";
+  const [type, setType] = cUS(isTeacher ? "announcement" : "post");
+  cUE(() => watchPosts(code, setPosts), [code]);
+
+  const send = async () => {
+    if (!text.trim()) return;
+    try { await addPost(code, { authorUid: meNow(), authorName: name, authorRole: role, type, text }); setText(""); }
+    catch { /* ignore */ }
+  };
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div className="card-glass" style={{ background: C.cream, border: `1px solid ${C.line}`, borderRadius: 12, padding: 14, marginBottom: 16 }}>
+        {isTeacher && (
+          <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+            {[["announcement", "📢 Announcement"], ["post", "💬 Message"]].map(([k, l]) => (
+              <button key={k} onClick={() => setType(k)} className="press" style={{ border: "none", cursor: "pointer", fontSize: 11.5, fontWeight: 700, padding: "5px 11px", borderRadius: 99, background: type === k ? C.violet : C.paperWarm, color: type === k ? "#fff" : C.ink50 }}>{l}</button>
+            ))}
+          </div>
+        )}
+        <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder={isTeacher ? "Share an announcement or note with your class…" : "Ask a question or share something with your class…"}
+          rows={2} style={{ width: "100%", resize: "vertical", border: `1.5px solid ${C.line}`, borderRadius: 10, padding: "10px 12px", fontSize: 13.5, fontFamily: "inherit", color: C.ink, outline: "none", background: "#fff" }} />
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+          <Btn v="primary" sm icon="send" onClick={send} disabled={!text.trim()}>Post</Btn>
+        </div>
+      </div>
+      {posts.length === 0 ? (
+        <p style={{ fontSize: 13, color: C.ink50, textAlign: "center", padding: "20px 0" }}>No posts yet — start the conversation!</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {posts.slice().reverse().map((p) => {
+            const ann = p.type === "announcement";
+            return (
+              <div key={p.id} style={{ background: ann ? C.violetPale : C.cream, border: `1px solid ${ann ? C.violet + "33" : C.line}`, borderRadius: 12, padding: "12px 16px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>{p.authorName}</span>
+                  <span className="mono" style={{ fontSize: 9, fontWeight: 700, color: ann ? C.violet : C.ink30, background: ann ? "#fff" : C.paperWarm, padding: "2px 7px", borderRadius: 99, textTransform: "uppercase" }}>{ann ? "Announcement" : p.authorRole === "teacher" ? "Teacher" : "Student"}</span>
+                  <span style={{ fontSize: 11, color: C.ink30, marginLeft: "auto" }}>{p.createdAt ? new Date(p.createdAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}</span>
+                </div>
+                <p style={{ fontSize: 13.5, color: C.ink70, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{p.text}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 const inputStyle = { width: "100%", padding: "11px 14px", borderRadius: 10, border: `1.5px solid ${C.line}`, fontSize: 14, color: C.ink, background: C.cream, outline: "none", fontFamily: "inherit" };
 
 /* ─────────── My Practical File (student-owned CBSE record) ─────────── */
@@ -54,6 +108,8 @@ export function JoinClassPage({ student, onBack, onJoined }) {
   const [err, setErr] = cUS("");
   const [ok, setOk] = cUS("");
   const joined = student.classes || [];
+  const [open, setOpen] = cUS(null);
+  if (open) return <StudentClassView membership={open} student={student} onBack={() => setOpen(null)} />;
 
   const submit = async () => {
     setErr(""); setOk("");
@@ -89,6 +145,7 @@ export function JoinClassPage({ student, onBack, onJoined }) {
                 <Ic n="grid" s={18} c={C.violet} sw={2} />
                 <div style={{ flex: 1 }}><div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink }}>{m.className}</div><div style={{ fontSize: 11.5, color: C.ink50 }}>{m.school || ""}</div></div>
                 <span className="mono" style={{ fontSize: 12, fontWeight: 700, color: C.violet, background: C.violetPale, padding: "4px 10px", borderRadius: 8 }}>{m.code}</span>
+                <Btn v="light" sm icon="arrow" onClick={() => setOpen(m)}>Open</Btn>
               </div>
             ))}
           </div>
@@ -130,7 +187,7 @@ export function TeacherPage({ student, onBack }) {
   if (active) return <ClassDetail cls={active} onBack={() => setActive(null)} />;
 
   return (
-    <PageShell title="My Classes" subtitle="Create a class, share the code, track your students" icon="grid" accent={C.coral} onBack={onBack}>
+    <PageShell title="My Classes" subtitle="Create a class, share the code, track your students" icon="grid" accent={C.coral} backLabel="Sign Out" onBack={onBack}>
       {/* create */}
       <div className="card-glass" style={{ background: C.cream, borderRadius: 16, padding: 22, marginBottom: 26 }}>
         <h4 style={{ fontSize: 14.5, fontWeight: 800, color: C.ink, marginBottom: 14 }}>Create a new class</h4>
@@ -178,15 +235,13 @@ function ClassDetail({ cls, onBack }) {
   const [roster, setRoster] = cUS([]);
   const [subs, setSubs] = cUS([]);
   const [loading, setLoading] = cUS(true);
+  const [tab, setTab] = cUS("students");
 
+  // Live listeners → a student joining / submitting / posting shows up instantly.
   cUE(() => {
-    (async () => {
-      try {
-        const [r, s] = await Promise.all([getRoster(cls.code), getSubmissions(cls.code)]);
-        setRoster(r); setSubs(s);
-      } catch { /* ignore */ }
-      setLoading(false);
-    })();
+    const unsubR = watchRoster(cls.code, (r) => { setRoster(r); setLoading(false); });
+    const unsubS = watchSubmissions(cls.code, setSubs);
+    return () => { unsubR(); unsubS(); };
   }, [cls.code]);
 
   // group submissions by student
@@ -209,7 +264,7 @@ function ClassDetail({ cls, onBack }) {
   const totalLabs = new Set(subs.map((s) => s.labId)).size;
 
   return (
-    <PageShell title={cls.className} subtitle={`Class code ${cls.code} · ${roster.length} student${roster.length !== 1 ? "s" : ""}`} icon="chart" accent={C.coral} onBack={onBack}>
+    <PageShell title={cls.className} subtitle={`Class code ${cls.code} · ${roster.length} student${roster.length !== 1 ? "s" : ""} joined`} icon="chart" accent={C.coral} backLabel="My Classes" onBack={onBack}>
       <div style={{ display: "flex", gap: 14, marginBottom: 24, flexWrap: "wrap" }}>
         {[{ n: roster.length, l: "Students joined", c: C.violet, ic: "shield" }, { n: subs.length, l: "Labs submitted", c: C.emBright, ic: "flask" }, { n: totalLabs, l: "Distinct experiments", c: C.gold, ic: "note" }].map((s, i) => (
           <div key={i} style={{ flex: 1, minWidth: 150, background: C.cream, border: `1px solid ${C.line}`, borderRadius: 12, padding: "16px 18px" }}>
@@ -220,6 +275,16 @@ function ClassDetail({ cls, onBack }) {
         ))}
       </div>
 
+      {/* tabs */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
+        {[["students", "Students & Records"], ["stream", "Class Stream"]].map(([k, l]) => (
+          <button key={k} onClick={() => setTab(k)} className="press" style={{ border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, padding: "8px 16px", borderRadius: 99, background: tab === k ? C.ink : C.paperWarm, color: tab === k ? "#fff" : C.ink50 }}>{l}</button>
+        ))}
+      </div>
+
+      {tab === "stream" && <ClassStream code={cls.code} name={cls.teacherName || "Teacher"} role="teacher" />}
+
+      {tab === "students" && (<>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
         <h4 style={{ fontSize: 15, fontWeight: 700, color: C.ink }}>Students & practical records</h4>
         <Btn v="dark" sm icon="note" onClick={downloadAll} disabled={!subs.length}>Download all practical files</Btn>
@@ -253,6 +318,35 @@ function ClassDetail({ cls, onBack }) {
           })}
         </div>
       )}
+      </>)}
+    </PageShell>
+  );
+}
+
+/* Student's view of a joined class — the announcement + post stream. */
+function StudentClassView({ membership, student, onBack }) {
+  return (
+    <PageShell title={membership.className} subtitle={`Class code ${membership.code}`} icon="grid" accent={C.violet} onBack={onBack}>
+      <ClassStream code={membership.code} name={student.name} role="student" />
+    </PageShell>
+  );
+}
+
+/* ─────────── Invite Parent (student shares their family code) ─────────── */
+export function InviteParentPage({ student, onBack }) {
+  const [code, setCode] = cUS(student.familyCode || "");
+  const [copied, setCopied] = cUS(false);
+  cUE(() => {
+    if (!code) ensureFamilyCode(student).then((c) => c && setCode(c)).catch(() => {});
+  }, []);
+  const copy = () => { try { navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch { /* ignore */ } };
+  return (
+    <PageShell title="Invite Your Parent" subtitle="Let a parent follow your progress" icon="shield" accent={C.gold} onBack={onBack}>
+      <div className="card-glass" style={{ background: C.cream, borderRadius: 16, padding: 28, maxWidth: 520, margin: "0 auto", textAlign: "center" }}>
+        <p style={{ fontSize: 13.5, color: C.ink70, lineHeight: 1.6 }}>Share this <b>Family Code</b> with your parent or guardian. They create a free Parent account, enter this code, and can then see your XP, levels, completed labs and scores — but never your lab list or your password.</p>
+        <div className="mono" style={{ fontSize: 40, fontWeight: 800, letterSpacing: "0.22em", color: C.gold, background: C.paperWarm, borderRadius: 12, padding: "18px 0", margin: "20px 0" }}>{code || "······"}</div>
+        <Btn v="primary" lg icon="check" onClick={copy} disabled={!code}>{copied ? "Copied!" : "Copy Code"}</Btn>
+      </div>
     </PageShell>
   );
 }

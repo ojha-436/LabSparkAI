@@ -60,14 +60,14 @@ function Field({ label, children }) {
 }
 const inputStyle = { width: "100%", padding: "11px 14px", borderRadius: 10, border: `1.5px solid ${C.line}`, fontSize: 14, color: C.ink, background: C.cream, outline: "none", fontFamily: "inherit" };
 
-export function PageShell({ title, subtitle, icon, onBack, children, accent = C.em }) {
+export function PageShell({ title, subtitle, icon, onBack, children, accent = C.em, backLabel = "Dashboard" }) {
   const ref = useReveal();
   return (
     <div ref={ref} className="grid-blueprint" style={{ minHeight: "100vh" }}>
       <nav style={{ position: "sticky", top: 0, zIndex: 40, background: "rgba(255,255,255,0.88)", backdropFilter: "blur(12px)", borderBottom: `1px solid ${C.line}` }}>
         <div style={{ maxWidth: 1000, margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", gap: 14 }}>
           <button onClick={onBack} className="press btn btn-light" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <Ic n="back" s={14} c={C.ink50} /> Dashboard
+            <Ic n="back" s={14} c={C.ink50} /> {backLabel}
           </button>
           <div style={{ width: 1, height: 20, background: C.line }} />
           <div style={{ width: 34, height: 34, borderRadius: 9, background: accent + "18", display: "flex", alignItems: "center", justifyContent: "center" }}>
