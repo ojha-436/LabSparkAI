@@ -9,6 +9,8 @@ import { Lab3D } from "./lab3d.jsx";
 import { CircuitLab } from "./circuitlab.jsx";
 import { Report } from "./report.jsx";
 import { ProfilePage, ProgressPage, AchievementsPage } from "./profile.jsx";
+import { PracticalFilePage, JoinClassPage, TeacherPage } from "./classroom.jsx";
+import { writeSubmission } from "./classroom.js";
 import { GenLab3D } from "./genlab3d.jsx";
 import { GEN_LABS } from "./genlabdata.js";
 import { CATALOG } from "./data.js";
@@ -17,7 +19,7 @@ const { useState: aUS } = React;
 
 const DEFAULT_STUDENT = {
   name: "Scientist", level: 1, xp: 0, done: 0, badges: 0, streak: 1, email: "student@labspark.ai",
-  school: "", klass: "", section: "", parentName: "", mobile: "", city: "", rollNo: "", photoData: null, completions: [],
+  school: "", klass: "", section: "", parentName: "", mobile: "", city: "", rollNo: "", photoData: null, completions: [], classes: [],
 };
 
 function App() {
@@ -85,7 +87,7 @@ function App() {
         parentName: next.parentName || "", mobile: next.mobile || "", city: next.city || "", rollNo: next.rollNo || "",
         photoData: next.photoData || null,
         xp: next.xp, level: next.level, done: next.done, badges: next.badges, streak: next.streak,
-        completions: next.completions || [],
+        completions: next.completions || [], classes: next.classes || [],
       }, { merge: true })
       .catch(() => {});
   };
@@ -119,19 +121,34 @@ function App() {
   const complete = (data) => {
     setReportData({ ...data, experimentId: activeExpId });
     setReportReturn("dashboard");
+    const name = (CATALOG.find((e) => e.id === activeExpId) || {}).name || "Science Lab";
+    const rec = {
+      id: activeExpId, name, experimentId: activeExpId, title: data.title || name,
+      date: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
+      correct: data.correct, total: data.total, xp: data.xp,
+      observations: data.observations || [], aim: data.aim || "", conclusion: data.conclusion || "",
+      chapter: data.chapter || "", cls: data.cls || "", subject: data.subject || "", aiFeedback: data.aiFeedback || "",
+    };
     setStudent((s) => {
-      const name = (CATALOG.find((e) => e.id === activeExpId) || {}).name || "Science Lab";
-      const rec = {
-        id: activeExpId, name, experimentId: activeExpId,
-        date: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
-        correct: data.correct, total: data.total, xp: data.xp,
-      };
       const list = [...(s.completions || []).filter((c) => c.id !== activeExpId), rec];
       const next = { ...s, done: list.length, badges: list.length, completions: list };
       persist(next);
       return next;
     });
+    // Mirror the completed lab into any classes the student has joined (teacher dashboards).
+    (student.classes || []).forEach((m) => { writeSubmission(m, student, rec).catch(() => {}); });
     setView("report");
+  };
+
+  // Student joined a class with a code — remember the membership so future
+  // completions are shared with that teacher.
+  const onJoined = (membership) => {
+    setStudent((s) => {
+      const classes = [...(s.classes || []).filter((c) => c.code !== membership.code), membership];
+      const next = { ...s, classes };
+      persist(next);
+      return next;
+    });
   };
 
   // Re-open a stored certificate from the Achievements page.
@@ -167,6 +184,9 @@ function App() {
           onEditProfile={() => setView("profile")}
           onOpenProgress={() => setView("progress")}
           onOpenAchievements={() => setView("achievements")}
+          onOpenPractical={() => setView("practical")}
+          onOpenJoin={() => setView("join")}
+          onOpenTeacher={() => setView("teacher")}
         />
       )}
 
@@ -180,6 +200,18 @@ function App() {
 
       {view === "achievements" && (
         <AchievementsPage student={student} onBack={() => setView("dashboard")} onViewCertificate={viewCertificate} />
+      )}
+
+      {view === "practical" && (
+        <PracticalFilePage student={student} onBack={() => setView("dashboard")} />
+      )}
+
+      {view === "join" && (
+        <JoinClassPage student={student} onBack={() => setView("dashboard")} onJoined={onJoined} />
+      )}
+
+      {view === "teacher" && (
+        <TeacherPage student={student} onBack={() => setView("dashboard")} />
       )}
       
       {view === "lab" && (

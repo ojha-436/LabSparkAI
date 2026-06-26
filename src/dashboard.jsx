@@ -9,7 +9,7 @@ const { useState: dUS } = React;
 
 const CLASS_ORDER = ["Class 6", "Class 7", "Class 8", "Class 9", "Class 10"];
 
-function Dashboard({ student, onOpen, onBackToLanding, onEditProfile, onOpenProgress, onOpenAchievements }) {
+function Dashboard({ student, onOpen, onBackToLanding, onEditProfile, onOpenProgress, onOpenAchievements, onOpenPractical, onOpenJoin, onOpenTeacher }) {
   const ref = useReveal();
   const featured = CATALOG[0];
   const lvlPct = (student.xp % 200) / 2;
@@ -28,8 +28,11 @@ function Dashboard({ student, onOpen, onBackToLanding, onEditProfile, onOpenProg
           {[
             { id: "bench", l: "Virtual Workbench", ic: "home", active: true, go: () => {} },
             { id: "analytics", l: "Class Progress", ic: "chart", go: onOpenProgress },
+            { id: "practical", l: "My Practical File", ic: "note", go: onOpenPractical },
             { id: "cert", l: "Achievements", ic: "trophy", go: onOpenAchievements },
-            { id: "profile", l: "My Profile", ic: "shield", go: onEditProfile },
+            { id: "join", l: "Join a Class", ic: "grid", go: onOpenJoin },
+            { id: "teacher", l: "Teacher · My Classes", ic: "shield", go: onOpenTeacher },
+            { id: "profile", l: "My Profile", ic: "home", go: onEditProfile },
           ].map((m) => (
             <button
               key={m.id}

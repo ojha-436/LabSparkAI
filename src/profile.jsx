@@ -60,7 +60,7 @@ function Field({ label, children }) {
 }
 const inputStyle = { width: "100%", padding: "11px 14px", borderRadius: 10, border: `1.5px solid ${C.line}`, fontSize: 14, color: C.ink, background: C.cream, outline: "none", fontFamily: "inherit" };
 
-function PageShell({ title, subtitle, icon, onBack, children, accent = C.em }) {
+export function PageShell({ title, subtitle, icon, onBack, children, accent = C.em }) {
   const ref = useReveal();
   return (
     <div ref={ref} className="grid-blueprint" style={{ minHeight: "100vh" }}>

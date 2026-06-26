@@ -2,9 +2,23 @@
 import React from "react";
 import { C } from "./tokens.js";
 import { Ic, Btn, useReveal } from "./ui.jsx";
-import { SUBSTANCES, TYPE_META, CIRCUIT_MATERIALS } from "./data.js";
+import { SUBSTANCES, TYPE_META, CIRCUIT_MATERIALS, CATALOG } from "./data.js";
 import { dipResult } from "./lab.jsx";
 import { GEN_LABS } from "./genlabdata.js";
+import { downloadLabRecord } from "./practicalfile.js";
+
+/* Build a practical-record object from the on-screen report data. */
+function recordFromReport(data) {
+  const cat = CATALOG.find((e) => e.id === data.experimentId) || {};
+  return {
+    id: data.experimentId, experimentId: data.experimentId,
+    name: data.title || cat.name || "Experiment",
+    correct: data.correct, total: data.total, xp: data.xp,
+    observations: data.observations || [], aim: data.aim || "", conclusion: data.conclusion || "",
+    chapter: data.chapter || cat.chapter || "",
+    date: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
+  };
+}
 const { useState: rUS, useEffect: rUE } = React;
 
 function Report({ data, student, onHome, onRetry }) {
@@ -155,7 +169,7 @@ function Report({ data, student, onHome, onRetry }) {
 
           <div style={{ display: "flex", gap: 10, marginTop: 28, flexWrap: "wrap" }}>
             <Btn v="dark" icon="note" onClick={() => window.print()}>Print Official Transcript</Btn>
-            <Btn v="light" icon="send">Share with Teacher</Btn>
+            <Btn v="light" icon="note" onClick={() => downloadLabRecord(student, recordFromReport(data))}>Download Practical Record</Btn>
           </div>
         </div>
 
@@ -257,7 +271,7 @@ function GenericReport({ data, student, onHome, onRetry, confetti }) {
           </div>
           <div style={{ display: "flex", gap: 10, marginTop: 24, flexWrap: "wrap" }}>
             <Btn v="dark" icon="note" onClick={() => window.print()}>Print Transcript</Btn>
-            <Btn v="light" icon="send">Share with Teacher</Btn>
+            <Btn v="light" icon="note" onClick={() => downloadLabRecord(student, recordFromReport(data))}>Download Practical Record</Btn>
           </div>
         </div>
         <div className="reveal r4" style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 30 }}>

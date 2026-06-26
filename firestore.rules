@@ -6,6 +6,39 @@ service cloud.firestore {
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+
+    // Classrooms. `teacherUid` is denormalised onto member/submission docs so a
+    // teacher's reads need no get() (scales to a whole class); writes are
+    // get()-validated against the real class so a student can't spoof a teacher.
+    match /classes/{code} {
+      // Any signed-in user may fetch a single class by code (to join / show name).
+      allow get: if request.auth != null;
+      // Queries only ever return the requesting teacher's own classes.
+      allow list: if request.auth != null && resource.data.teacherUid == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.teacherUid == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.teacherUid == request.auth.uid;
+
+      match /members/{studentUid} {
+        // Read: the student themselves, or the class's teacher (no get() needed).
+        allow read: if request.auth != null &&
+          (request.auth.uid == studentUid || request.auth.uid == resource.data.teacherUid);
+        // Write: the student joining themselves, with a teacherUid that matches the real class.
+        allow create, update: if request.auth != null &&
+          request.auth.uid == studentUid &&
+          request.resource.data.teacherUid == get(/databases/$(database)/documents/classes/$(code)).data.teacherUid;
+        allow delete: if request.auth != null && request.auth.uid == studentUid;
+      }
+
+      match /submissions/{subId} {
+        allow read: if request.auth != null &&
+          (request.auth.uid == resource.data.studentUid || request.auth.uid == resource.data.teacherUid);
+        allow create, update: if request.auth != null &&
+          request.resource.data.studentUid == request.auth.uid &&
+          request.resource.data.teacherUid == get(/databases/$(database)/documents/classes/$(code)).data.teacherUid;
+        allow delete: if false;
+      }
+    }
+
     // Deny everything else by default.
     match /{document=**} {
       allow read, write: if false;

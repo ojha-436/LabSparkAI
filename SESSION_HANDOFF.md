@@ -9,6 +9,18 @@
 LabSpark AI is an **AI-tutored 3D virtual science lab** for NCERT Class 6–10. It is **built and deployed live**. A student enters a 3D lab room, performs an experiment with realistic apparatus, talks to **"Spark"** (a Google Gemini tutor, voice + text), gets AI-graded, and earns a certificate.
 
 - **Status:** production. **42 fully interactive labs** live (CBSE-aligned). Classes **6–10 are all 100% complete** — every catalogued lab is `ready`, covering the syllabus's classic Physics & Chemistry practicals. Per-class ready counts: C6 = 10, C7 = 8, C8 = 8, C9 = 8, C10 = 8. No placeholders remain.
+- **Revenue-engine layer (Step 1 — done, deployed):** teacher/class layer + auto-generated CBSE practical-file PDF. See "Classroom & Practical File" section below.
+
+## Classroom & Practical File (the B2B wedge)
+
+The institutional layer that turns the B2C demo into something schools pay for. **Additive and non-breaking** — the solo-student flow is untouched.
+
+- **`src/practicalfile.js`** — client-side jsPDF generator (deps: `jspdf`, `jspdf-autotable`). Builds a CBSE-format **Science Practical File** (cover page with student/school/class/roll + one section per lab: Aim, Materials, Theory/Procedure, Observation Table, Result/Conclusion, Viva, Score). Pulls rich detail from the lab's `GEN_LABS` spec and the student's own per-item verdicts; falls back to `CATALOG` for the two non-`GEN_LABS` labs (acid-base, circuit). `downloadPracticalFile(student, completions)` (full file) and `downloadLabRecord(student, completion)` (one lab). ₹0 marginal cost. Verified generating in Node (4-page PDF).
+- **`src/classroom.js`** — Firestore data layer. Model: `classes/{CODE}` `{code, teacherUid, teacherName, className, school, grade, subject, createdAt}`; subcollections `members/{studentUid}` and `submissions/{uid__labId}`, both with **denormalised `teacherUid`**. 6-char join codes (no ambiguous chars). `createClass / listMyClasses / getClass / joinClass / getRoster / getSubmissions / writeSubmission`.
+- **`src/classroom.jsx`** — three pages (reuse `PageShell`, now exported from `profile.jsx`): `PracticalFilePage` (student downloads their file), `JoinClassPage` (student enters a code), `TeacherPage` (create class → share code → per-class roster × labs × avg-score table + per-student / bulk practical-file download via `ClassDetail`).
+- **Wiring:** `app.jsx` — `DEFAULT_STUDENT.classes=[]`; `persist()` saves `classes`; `complete()` now stores a rich record (observations/aim/conclusion/chapter/cls/subject/aiFeedback) **and** mirrors a submission into every joined class; `onJoined()` stores membership; new views `practical`/`join`/`teacher`. `genlab3d.jsx` onComplete now passes `observations` + chapter/cls/subject. `dashboard.jsx` sidebar gains My Practical File · Join a Class · Teacher. `report.jsx` "Share with Teacher" stub → **"Download Practical Record"**.
+- **`firestore.rules`** — added `classes/**`. Teacher reads (members/submissions) authorised via the denormalised `teacherUid` (**no `get()`** → scales to a whole class); writes are `get()`-validated against the real class so a student can't spoof a teacher. `get` on a class allowed for any signed-in user (join by code); `list` only returns the teacher's own classes. Deployed.
+- **Known follow-ups:** bundle grew with jsPDF — consider lazy-loading `practicalfile.js`; a student can't yet *leave* a class; proctored "exam mode" + Google Classroom sync are the next institutional features (Step 1 backlog).
 - **Live app:** https://gen-lang-client-0686614374.web.app
 - **Repo:** https://github.com/ojha-436/LabSparkAI · **branch** `main` · **last commit** `cb74b20`
 - **Local code:** `D:\google_Xbuild\LabSpark_AI` (moved OFF OneDrive — keep it there).

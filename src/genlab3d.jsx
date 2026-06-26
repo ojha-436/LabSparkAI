@@ -322,7 +322,7 @@ export function GenLab3D({ spec, onExit, onComplete, addXp }) {
     const minDelay = new Promise((r) => setTimeout(r, 2600));
     const feedback = gradeLab({ experiment: `${spec.cls} ${spec.subject} — ${spec.title}`, observations }).then((g) => g.feedback).catch(() => null);
     Promise.all([feedback, minDelay]).then(([aiFeedback]) => {
-      onComplete({ experimentId: spec.id, correct, total: items.length, xp, aiFeedback, generic: true, title: spec.title, aim: spec.aim, conclusion: spec.conclusion });
+      onComplete({ experimentId: spec.id, correct, total: items.length, xp, aiFeedback, generic: true, title: spec.title, aim: spec.aim, conclusion: spec.conclusion, observations, chapter: spec.chapter, cls: spec.cls, subject: spec.subject });
     });
   };
 
