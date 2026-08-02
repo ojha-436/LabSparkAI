@@ -77,7 +77,7 @@ export function ParentDashboard({ student, onBack, onAddChild }) {
                   <div style={{ padding: "18px 20px", fontSize: 13, color: C.ink50 }}>Waiting for {ch.name} to complete their first lab…</div>
                 ) : (
                   <div style={{ padding: "18px 20px" }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 16 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 12, marginBottom: 16 }}>
                       {[{ n: p.done || 0, l: "Labs completed", c: C.emBright }, { n: comps.length ? Math.round(comps.reduce((a, c) => a + (c.total ? c.correct / c.total : 0), 0) / comps.length * 100) + "%" : "—", l: "Avg accuracy", c: C.violet }, { n: p.streak || 1, l: "Day streak", c: C.coral }].map((s, i) => (
                         <div key={i} style={{ background: C.paperWarm, borderRadius: 10, padding: "12px 14px", textAlign: "center" }}>
                           <div style={{ fontSize: 22, fontWeight: 800, color: C.ink }}>{s.n}</div>

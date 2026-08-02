@@ -1,7 +1,7 @@
 /* ── LandingPage: Modular CSS-Class-Based Enterprise Landing Page ── */
 import React from "react";
 import { C } from "./tokens.js";
-import { Ic, Btn, Chip, SparkAvatar, VoiceWaveform, useReveal } from "./ui.jsx";
+import { Ic, Btn, Chip, SparkAvatar, VoiceWaveform, useReveal, useIsMobile } from "./ui.jsx";
 const { useState: laUS, useEffect: laUE } = React;
 
 /* ── Creator details — EDIT to your real info. Photo: place at public/creator.jpg ── */
@@ -13,6 +13,7 @@ const CREATOR = {
 
 function LandingPage({ onEnterSandbox }) {
   const ref = useReveal();
+  const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = laUS("curriculum");
   const [voiceSim, setVoiceSim] = laUS(false);
   const [voiceStep, setVoiceStep] = laUS(0);
@@ -52,30 +53,33 @@ function LandingPage({ onEnterSandbox }) {
     <div ref={ref} style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       {/* Top Navbar */}
       <nav style={{ position: "sticky", top: 0, zIndex: 100, background: "rgba(248, 250, 252, 0.85)", backdropFilter: "blur(12px)", borderBottom: `1px solid ${C.line}` }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: isMobile ? "10px 16px" : "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 34, height: 34, borderRadius: "24%", background: `linear-gradient(135deg, #6366f1, #8b5cf6)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Ic n="flask" s={18} c="#fff" sw={2} />
             </div>
-            <span style={{ fontSize: 20, fontWeight: 800, fontFamily: "'Plus Jakarta Sans'", letterSpacing: "-0.03em", color: C.ink }}>
+            <span style={{ fontSize: isMobile ? 18 : 20, fontWeight: 800, fontFamily: "'Plus Jakarta Sans'", letterSpacing: "-0.03em", color: C.ink }}>
               LabSpark <span style={{ color: C.emBright, fontWeight: 500 }}>AI</span>
             </span>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 24, fontSize: 13.5, fontWeight: 600, color: C.ink70 }}>
-            <a href="#demo" className="link-underline">Voice Preview</a>
-            <a href="#platform" className="link-underline">Platform Details</a>
-            <a href="#curriculum" className="link-underline">Curriculum Directory</a>
-          </div>
+          {/* Desktop-only anchor nav (hidden on phones to avoid overflow) */}
+          {!isMobile && (
+            <div style={{ display: "flex", alignItems: "center", gap: 24, fontSize: 13.5, fontWeight: 600, color: C.ink70 }}>
+              <a href="#demo" className="link-underline">Voice Preview</a>
+              <a href="#platform" className="link-underline">Platform Details</a>
+              <a href="#curriculum" className="link-underline">Curriculum Directory</a>
+            </div>
+          )}
 
           <div>
-            <Btn v="primary" icon="arrow" onClick={onEnterSandbox}>Launch Workbench</Btn>
+            <Btn v="primary" sm={isMobile} icon="arrow" onClick={onEnterSandbox}>{isMobile ? "Start" : "Launch Workbench"}</Btn>
           </div>
         </div>
       </nav>
 
       {/* Hero Section */}
-      <section className="blueprint-grid" style={{ padding: "80px 24px 60px", position: "relative", overflow: "hidden", borderBottom: `1px solid ${C.line}` }}>
+      <section className="blueprint-grid" style={{ padding: isMobile ? "40px 18px 36px" : "80px 24px 60px", position: "relative", overflow: "hidden", borderBottom: `1px solid ${C.line}` }}>
         <div style={{ position: "absolute", top: "-12%", left: "38%", width: 520, height: 520, borderRadius: "50%", background: `radial-gradient(circle, ${C.emPale} 0%, transparent 70%)`, opacity: 0.75, pointerEvents: "none", animation: "auroraFloat 16s ease-in-out infinite", filter: "blur(8px)" }} />
         <div style={{ position: "absolute", bottom: "-22%", left: "-12%", width: 460, height: 460, borderRadius: "50%", background: `radial-gradient(circle, ${C.violetPale} 0%, transparent 70%)`, opacity: 0.55, pointerEvents: "none", animation: "auroraFloat2 19s ease-in-out infinite", filter: "blur(8px)" }} />
         <div style={{ position: "absolute", top: "10%", right: "-8%", width: 380, height: 380, borderRadius: "50%", background: `radial-gradient(circle, ${C.skyPale} 0%, transparent 70%)`, opacity: 0.5, pointerEvents: "none", animation: "auroraFloat 22s ease-in-out infinite", filter: "blur(8px)" }} />
@@ -106,15 +110,19 @@ function LandingPage({ onEnterSandbox }) {
             </a>
           </div>
 
-          <div className="reveal r5" style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", marginTop: 10 }}>
+          <div className="reveal r5" style={isMobile
+            ? { display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, marginTop: 10, maxWidth: 320, marginLeft: "auto", marginRight: "auto" }
+            : { display: "flex", justifyContent: "center", flexWrap: "wrap", marginTop: 10 }}>
             {[
               { n: "6–10", l: "NCERT Classes" },
               { n: "AI", l: "Socratic Tutor" },
               { n: "3D", l: "Interactive Labs" },
               { n: "24/7", l: "Learn Anytime" },
             ].map((s, i) => (
-              <div key={i} style={{ padding: "0 30px", borderLeft: i ? `1px solid ${C.line}` : "none", textAlign: "center" }}>
-                <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em", background: `linear-gradient(90deg, ${C.em}, ${C.violet})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{s.n}</div>
+              <div key={i} style={isMobile
+                ? { background: C.cream, border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 8px", textAlign: "center" }
+                : { padding: "0 30px", borderLeft: i ? `1px solid ${C.line}` : "none", textAlign: "center" }}>
+                <div style={{ fontSize: isMobile ? 24 : 28, fontWeight: 800, letterSpacing: "-0.02em", background: `linear-gradient(90deg, ${C.em}, ${C.violet})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{s.n}</div>
                 <div style={{ fontSize: 12, color: C.ink50, fontWeight: 600, marginTop: 3 }}>{s.l}</div>
               </div>
             ))}
@@ -123,17 +131,17 @@ function LandingPage({ onEnterSandbox }) {
       </section>
 
       {/* Voice Waveform Section */}
-      <section id="demo" style={{ padding: "70px 24px", background: C.cream, borderBottom: `1px solid ${C.line}` }}>
+      <section id="demo" style={{ padding: isMobile ? "40px 16px" : "70px 24px", background: C.cream, borderBottom: `1px solid ${C.line}` }}>
         <div style={{ maxWidth: 1000, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: 40 }}>
+          <div style={{ textAlign: "center", marginBottom: isMobile ? 26 : 40 }}>
             <span className="mono" style={{ fontSize: 11, color: C.violet, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>GEMINI MULTIMODAL LIVE API</span>
-            <h2 style={{ fontSize: 30, color: C.ink, letterSpacing: "-0.02em", marginTop: 6 }}>Low-Latency Socratic Voice Partner</h2>
+            <h2 style={{ fontSize: isMobile ? 24 : 30, color: C.ink, letterSpacing: "-0.02em", marginTop: 6 }}>Low-Latency Socratic Voice Partner</h2>
             <p style={{ fontSize: 14.5, color: C.ink50, maxWidth: 500, margin: "10px auto 0", lineHeight: 1.5 }}>
               Spark "sees" the sandbox workbench, guides students through active questions, and prevents dangerous mixtures, all via natural WebRTC conversation.
             </p>
           </div>
 
-          <div className="card-glass" style={{ padding: "30px 40px", display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 32, alignItems: "center" }}>
+          <div className="card-glass" style={{ padding: isMobile ? "18px" : "30px 40px", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.2fr 0.8fr", gap: isMobile ? 20 : 32, alignItems: "center" }}>
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
                 <SparkAvatar size={48} mood={voiceSim ? (voiceStep % 2 === 1 ? "celebrate" : "thinking") : "happy"} glow={voiceSim} />
@@ -175,7 +183,9 @@ function LandingPage({ onEnterSandbox }) {
             </div>
 
             {/* Voice Channel Metrics */}
-            <div style={{ borderLeft: `1px solid ${C.line}`, paddingLeft: 30, display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={isMobile
+              ? { borderTop: `1px solid ${C.line}`, paddingTop: 18, display: "flex", flexDirection: "column", gap: 14 }
+              : { borderLeft: `1px solid ${C.line}`, paddingLeft: 30, display: "flex", flexDirection: "column", gap: 16 }}>
               <div className="mono">
                 <div style={{ fontSize: 11, color: C.ink30, fontWeight: 600 }}>WEBSOCKET PROTOCOL</div>
                 <div style={{ fontSize: 13, color: C.ink70, fontWeight: 700, marginTop: 2 }}>wss://cloudrun.labspark.ai/v1/live</div>
@@ -202,9 +212,9 @@ function LandingPage({ onEnterSandbox }) {
       </section>
 
       {/* Platform & Tabs Section */}
-      <section id="platform" style={{ padding: "70px 24px", background: C.paper, borderBottom: `1px solid ${C.line}` }}>
+      <section id="platform" style={{ padding: isMobile ? "40px 16px" : "70px 24px", background: C.paper, borderBottom: `1px solid ${C.line}` }}>
         <div style={{ maxWidth: 1000, margin: "0 auto" }}>
-          <div style={{ display: "flex", justifyContent: "center", gap: 10, marginBottom: 38 }}>
+          <div style={{ display: "flex", justifyContent: isMobile ? "flex-start" : "center", gap: 8, marginBottom: isMobile ? 22 : 38, overflowX: isMobile ? "auto" : "visible", paddingBottom: isMobile ? 4 : 0 }}>
             {[
               { id: "curriculum", l: "NCERT Laboratory", ic: "book" },
               { id: "gcp", l: "GCP Native Architecture", ic: "globe" },
@@ -215,7 +225,7 @@ function LandingPage({ onEnterSandbox }) {
                 onClick={() => setActiveTab(t.id)} 
                 className="press" 
                 style={{
-                  padding: "9px 18px",
+                  padding: "9px 16px",
                   borderRadius: 8,
                   fontSize: 13,
                   fontWeight: 600,
@@ -223,6 +233,8 @@ function LandingPage({ onEnterSandbox }) {
                   display: "flex",
                   alignItems: "center",
                   gap: 7,
+                  flexShrink: 0,
+                  whiteSpace: "nowrap",
                   transition: "all 0.2s",
                   background: activeTab === t.id ? C.emBright : "#fff",
                   color: activeTab === t.id ? "#fff" : C.ink70,
@@ -236,10 +248,10 @@ function LandingPage({ onEnterSandbox }) {
           </div>
 
           <div style={{ minHeight: 320 }} className="card-glass">
-            <div style={{ padding: "34px 40px" }}>
-              {activeTab === "curriculum" && <TabCurriculum />}
-              {activeTab === "gcp" && <TabGcp />}
-              {activeTab === "b2b" && <TabB2b />}
+            <div style={{ padding: isMobile ? "20px 16px" : "34px 40px" }}>
+              {activeTab === "curriculum" && <TabCurriculum isMobile={isMobile} />}
+              {activeTab === "gcp" && <TabGcp isMobile={isMobile} />}
+              {activeTab === "b2b" && <TabB2b isMobile={isMobile} />}
             </div>
           </div>
         </div>
@@ -314,7 +326,7 @@ function FloatingAsset({ icon, name, delay, color }) {
   );
 }
 
-function TabCurriculum() {
+function TabCurriculum({ isMobile }) {
   const experiments = [
     { cls: "Class 7", sub: "Chemistry", name: "Acids, Bases & Indicators (Litmus)", ready: true, icon: "drop", color: C.emBright },
     { cls: "Class 6", sub: "Chemistry", name: "Separation of Substances (Filtration)", ready: false, icon: "beaker", color: C.gold },
@@ -333,7 +345,7 @@ function TabCurriculum() {
         </p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: isMobile ? 10 : 16 }}>
         {experiments.map((e, i) => (
           <div key={i} className="hover-lift" style={{ border: `1px solid ${C.line}`, borderRadius: 10, padding: 16, background: C.paper, position: "relative" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
@@ -363,7 +375,8 @@ function TabCurriculum() {
   );
 }
 
-function TabGcp() {
+function TabGcp({ isMobile }) {
+  const Arrow = () => <span style={{ display: "inline-flex", transform: isMobile ? "rotate(90deg)" : "none" }}><Ic n="arrow" s={18} c={C.slate500} /></span>;
   return (
     <div>
       <div style={{ marginBottom: 22 }}>
@@ -374,19 +387,19 @@ function TabGcp() {
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr auto 1fr", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr auto 1fr auto 1fr", justifyItems: "center", alignItems: "center", gap: 12 }}>
           <div style={{ border: `1px solid ${C.line}`, padding: 14, borderRadius: 10, background: C.paper, textAlign: "center" }}>
             <div className="mono" style={{ fontSize: 10, color: C.em }}>FRONTEND CLIENT</div>
             <h5 style={{ fontSize: 13.5, marginTop: 4 }}>HTML5 Sandbox + Audio</h5>
             <p style={{ fontSize: 11, color: C.ink50, marginTop: 3 }}>WebRTC media streams direct-piped.</p>
           </div>
-          <Ic n="arrow" s={18} c={C.slate500} />
+          <Arrow />
           <div style={{ border: `1px solid ${C.line}`, padding: 14, borderRadius: 10, background: C.paper, textAlign: "center" }}>
             <div className="mono" style={{ fontSize: 10, color: C.violet }}>CLOUD RUN HOST</div>
             <h5 style={{ fontSize: 13.5, marginTop: 4 }}>WebSockets Core</h5>
             <p style={{ fontSize: 11, color: C.ink50, marginTop: 3 }}>Routes delta state maps to LLM.</p>
           </div>
-          <Ic n="arrow" s={18} c={C.slate500} />
+          <Arrow />
           <div style={{ border: `1px solid ${C.line}`, padding: 14, borderRadius: 10, background: C.paper, textAlign: "center" }}>
             <div className="mono" style={{ fontSize: 10, color: C.gold }}>VERTEX AI AGENT</div>
             <h5 style={{ fontSize: 13.5, marginTop: 4 }}>Gemini 1.5 Flash</h5>
@@ -394,7 +407,7 @@ function TabGcp() {
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 10 : 16, marginTop: 8 }}>
           <div style={{ display: "flex", gap: 10, background: C.paper, border: `1px solid ${C.line}`, padding: 14, borderRadius: 10 }}>
             <Ic n="shield" s={20} c={C.emBright} sw={2} />
             <div>
@@ -419,7 +432,7 @@ function TabGcp() {
   );
 }
 
-function TabB2b() {
+function TabB2b({ isMobile }) {
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
@@ -429,7 +442,7 @@ function TabB2b() {
         </p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 26 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.2fr 0.8fr", gap: isMobile ? 16 : 26 }}>
         <div>
           <h5 style={{ fontSize: 13, color: C.ink, marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.02em" }} className="mono">Active Student Transcripts</h5>
           <div style={{ border: `1px solid ${C.line}`, borderRadius: 8, overflow: "hidden", background: C.paper }}>

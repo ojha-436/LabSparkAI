@@ -14,7 +14,7 @@ export const ROLES = [
 /* Inline 3-card chooser (used on the sign-up screen and the setup page). */
 export function RoleChooser({ value, onChange }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
       {ROLES.map((r) => {
         const sel = value === r.key;
         return (

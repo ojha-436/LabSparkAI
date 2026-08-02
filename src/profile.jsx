@@ -1,7 +1,7 @@
 /* ── Profile, Class Progress, and Achievements pages ── */
 import React from "react";
 import { C } from "./tokens.js";
-import { Ic, Btn, useReveal } from "./ui.jsx";
+import { Ic, Btn, useReveal, useIsMobile } from "./ui.jsx";
 
 const { useState: pUS, useRef: pUR } = React;
 
@@ -62,10 +62,11 @@ const inputStyle = { width: "100%", padding: "11px 14px", borderRadius: 10, bord
 
 export function PageShell({ title, subtitle, icon, onBack, children, accent = C.em, backLabel = "Dashboard" }) {
   const ref = useReveal();
+  const isMobile = useIsMobile();
   return (
     <div ref={ref} className="grid-blueprint" style={{ minHeight: "100vh" }}>
       <nav style={{ position: "sticky", top: 0, zIndex: 40, background: "rgba(255,255,255,0.88)", backdropFilter: "blur(12px)", borderBottom: `1px solid ${C.line}` }}>
-        <div style={{ maxWidth: 1000, margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ maxWidth: 1000, margin: "0 auto", padding: isMobile ? "10px 14px" : "14px 24px", display: "flex", alignItems: "center", gap: isMobile ? 10 : 14 }}>
           <button onClick={onBack} className="press btn btn-light" style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <Ic n="back" s={14} c={C.ink50} /> {backLabel}
           </button>
@@ -79,13 +80,14 @@ export function PageShell({ title, subtitle, icon, onBack, children, accent = C.
           </div>
         </div>
       </nav>
-      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "32px 24px 80px" }}>{children}</div>
+      <div style={{ maxWidth: 1000, margin: "0 auto", padding: isMobile ? "20px 14px 72px" : "32px 24px 80px" }}>{children}</div>
     </div>
   );
 }
 
 /* ─────────── Profile editor ─────────── */
 export function ProfilePage({ student, onSave, onBack }) {
+  const isMobile = useIsMobile();
   const [form, setForm] = pUS({
     name: student.name || "", school: student.school || "", klass: student.klass || "",
     section: student.section || "", parentName: student.parentName || "", mobile: student.mobile || "",
@@ -130,7 +132,7 @@ export function ProfilePage({ student, onSave, onBack }) {
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 12 : 16 }}>
           <Field label="Full Name *"><input style={inputStyle} value={form.name} onChange={set("name")} placeholder="e.g. Aarav Sharma" /></Field>
           <Field label="School Name"><input style={inputStyle} value={form.school} onChange={set("school")} placeholder="e.g. Delhi Public School" /></Field>
           <Field label="Class">
@@ -159,6 +161,7 @@ export function ProfilePage({ student, onSave, onBack }) {
 
 /* ─────────── Class Progress ─────────── */
 export function ProgressPage({ student, catalog, onBack, onOpen }) {
+  const isMobile = useIsMobile();
   const completions = student.completions || [];
   const completedIds = new Set(completions.map((c) => c.id));
   const total = catalog.length;
@@ -168,7 +171,7 @@ export function ProgressPage({ student, catalog, onBack, onOpen }) {
   return (
     <PageShell title="Class Progress" subtitle="Your lab journey so far" icon="chart" accent={C.em} onBack={onBack}>
       {/* summary */}
-      <div className="reveal r1" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 28 }}>
+      <div className="reveal r1" style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: isMobile ? 10 : 16, marginBottom: 28 }}>
         {[
           { n: done, l: "Labs Completed", c: C.emBright, ic: "flask" },
           { n: total - done, l: "Labs Remaining", c: C.gold, ic: "clock" },
