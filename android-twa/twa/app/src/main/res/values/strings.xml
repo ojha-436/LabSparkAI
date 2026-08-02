@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="appName">LabSpark</string>
+    <string name="launchUrl">https://labspark-app.web.app/?source=twa</string>
+    <string name="hostName">labspark-app.web.app</string>
+    <string name="assetStatements">[{ \"relation\": [\"delegate_permission/common.handle_all_urls\"], \"target\": {\"namespace\": \"web\", \"site\": \"https://labspark-app.web.app\"}}]</string>
+</resources>

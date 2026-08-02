@@ -30,3 +30,14 @@ node_modules/
 # Tooling caches / generated
 .firebase/
 .playwright-mcp/
+
+# Android TWA — keep the project source, ignore heavy/secret/generated parts
+android-twa/sdk/
+android-twa/gradle-8.7/
+android-twa/*.zip
+android-twa/android.keystore
+android-twa/KEYSTORE_INFO.txt
+android-twa/twa/.gradle/
+android-twa/twa/build/
+android-twa/twa/app/build/
+android-twa/twa/local.properties

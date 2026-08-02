@@ -1,0 +1,41 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'ai.labspark.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'ai.labspark.app'
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName '1.0.0'
+    }
+
+    signingConfigs {
+        release {
+            storeFile file('D:/google_Xbuild/LabSpark_AI/android-twa/android.keystore')
+            storePassword 'labspark2026'
+            keyAlias 'android'
+            keyPassword 'labspark2026'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+}

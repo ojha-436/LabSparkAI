@@ -5,6 +5,7 @@
       "namespace": "android_app",
       "package_name": "ai.labspark.app",
       "sha256_cert_fingerprints": [
+        "3A:22:0E:14:A1:43:86:A4:7F:F7:AF:52:93:98:58:BD:26:32:17:C6:E8:AD:4B:34:9D:F4:D1:6F:F9:9A:EA:7F",
         "REPLACE_WITH_PLAY_APP_SIGNING_SHA256_FINGERPRINT"
       ]
     }
