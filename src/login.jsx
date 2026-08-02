@@ -64,17 +64,16 @@ function LoginPage({ onLogin, onBack, onRoleHint }) {
   const handleGoogleSubmit = () => {
     setError("");
     if (onRoleHint) onRoleHint(role);
+    // Redirect (not popup): popups are blocked in Android WebView/TWA. Persist the
+    // chosen role so it survives the full-page reload the redirect causes; a new
+    // Google user with no stored role still lands on the role-setup screen.
+    try { if (role) sessionStorage.setItem("ls_pending_role", role); } catch { /* ignore */ }
     setLoadingGoogle(true);
     const provider = new firebase.auth.GoogleAuthProvider();
-    firebase.auth().signInWithPopup(provider)
-      .then((result) => {
-        setLoadingGoogle(false);
-        onLogin(result.user.displayName || result.user.email, role);
-      })
-      .catch((err) => {
-        setLoadingGoogle(false);
-        setError(err.message);
-      });
+    firebase.auth().signInWithRedirect(provider).catch((err) => {
+      setLoadingGoogle(false);
+      setError(err.message);
+    });
   };
 
 
