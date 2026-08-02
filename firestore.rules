@@ -50,9 +50,47 @@ service cloud.firestore {
       match /submissions/{subId} {
         allow read: if request.auth != null &&
           (request.auth.uid == resource.data.studentUid || request.auth.uid == resource.data.teacherUid);
-        allow create, update: if request.auth != null && request.resource.data.studentUid == request.auth.uid &&
+        allow create: if request.auth != null && request.resource.data.studentUid == request.auth.uid &&
           request.resource.data.teacherUid == get(/databases/$(database)/documents/classes/$(code)).data.teacherUid;
+        allow update: if request.auth != null && (
+          // The student re-doing their own lab (owns the record).
+          (request.resource.data.studentUid == request.auth.uid &&
+           request.resource.data.teacherUid == get(/databases/$(database)/documents/classes/$(code)).data.teacherUid) ||
+          // The class teacher grading: ONLY the mark fields may change.
+          (request.auth.uid == resource.data.teacherUid &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['teacherMark', 'marksApproved', 'gradedBy', 'gradedAt']))
+        );
         allow delete: if false;
+      }
+
+      // ── Assignments — teacher assigns labs to the class; any member reads them. ──
+      match /assignments/{labId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null &&
+          get(/databases/$(database)/documents/classes/$(code)).data.teacherUid == request.auth.uid;
+      }
+
+      // ── Live session (singleton) — teacher runs one lab for the whole class. ──
+      match /live/{docId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null &&
+          get(/databases/$(database)/documents/classes/$(code)).data.teacherUid == request.auth.uid;
+      }
+
+      // ── Pre-roster (expected students) — teacher writes; any signed-in user can read
+      //    (a joining student reads it to auto-fill their roll number). ──
+      match /roster/{docId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null &&
+          get(/databases/$(database)/documents/classes/$(code)).data.teacherUid == request.auth.uid;
+      }
+
+      // ── Presence heartbeats — student writes own; teacher reads (teacherUid-filtered). ──
+      match /presence/{studentUid} {
+        allow read: if request.auth != null && request.auth.uid == resource.data.teacherUid;
+        allow create, update: if request.auth != null && request.auth.uid == studentUid &&
+          request.resource.data.teacherUid == get(/databases/$(database)/documents/classes/$(code)).data.teacherUid;
+        allow delete: if request.auth != null && request.auth.uid == studentUid;
       }
 
       // Class stream: announcements (teacher) + posts (members). Code is the gate for reads.

@@ -86,6 +86,14 @@ Teaching style:
 - Never tell a student to taste, touch, or smell real chemicals.
 - If asked something off-topic, gently steer back to the experiment.
 - React to what the student is actually doing in the sandbox (the labState).
+
+Socratic inquiry mode:
+- When the student makes a PREDICTION, never reveal the answer first — ask one short
+  "why" that nudges their reasoning.
+- When you EXPLAIN after an observation, first say plainly whether their prediction
+  matched, then give the one-sentence reason.
+- Celebrate a wrong prediction as a good scientific guess — a hypothesis that didn't
+  hold is still real science. Never make a student feel bad for predicting wrong.
 `.trim();
 
 function ensureReady(res) {
@@ -159,6 +167,27 @@ app.post("/api/spark/react", async (req, res) => {
   }
 });
 
+/* ── Socratic explain: contrast a student's prediction with the real result ──
+   Called only on a MISPREDICTION (hits use a free client-side template), so the
+   AI cost is bounded to the moments that actually need adaptive teaching. */
+app.post("/api/spark/explain", async (req, res) => {
+  if (!ensureReady(res)) return;
+  const { experiment, item, prediction, actual, reason, wasCorrect } = req.body || {};
+  try {
+    const prompt =
+      `Experiment: ${experiment || "science lab"}. The student tested "${item || "a sample"}".\n` +
+      `They PREDICTED it was "${prediction}"${reason ? ` because "${reason}"` : ""}.\n` +
+      `The real result is "${actual}" (their prediction was ${wasCorrect ? "correct" : "wrong"}).\n` +
+      `In 1–2 short spoken sentences, tell them whether their prediction matched and ` +
+      `why the real result happens, Socratically. Encourage the guess even if it was wrong.`;
+    const answer = await generate({ prompt, maxOutputTokens: 220 });
+    res.json({ answer: answer?.trim() || "" });
+  } catch (err) {
+    console.error("explain error:", err);
+    res.status(502).json({ error: "Gemini request failed" });
+  }
+});
+
 /* ── Conceptual grading of a completed lab ── */
 app.post("/api/grade", async (req, res) => {
   if (!ensureReady(res)) return;
@@ -182,6 +211,53 @@ app.post("/api/grade", async (req, res) => {
     res.json(parsed);
   } catch (err) {
     console.error("grade error:", err);
+    res.status(502).json({ error: "Gemini request failed" });
+  }
+});
+
+/* ── Teacher intelligence: turn class misconceptions into a reteaching plan ──
+   The heavy analytics are computed free on the client; this is one on-demand
+   call that converts the aggregated misconceptions into teacher-ready actions. */
+app.post("/api/insights", async (req, res) => {
+  if (!ensureReady(res)) return;
+  const { className, misconceptions, atRiskCount, studentCount } = req.body || {};
+  try {
+    const lines = Array.isArray(misconceptions)
+      ? misconceptions.map((m) => `- ${m.item} (${m.lab}): ${m.wrong}/${m.total} students wrong; correct answer is "${m.correct}"`).join("\n")
+      : "";
+    const prompt =
+      `You advise a science teacher about class "${className || "the class"}" ` +
+      `(${studentCount || "several"} students, ${atRiskCount || 0} below 60%).\n` +
+      `The most common misconceptions this week:\n${lines}\n\n` +
+      `Write a short, practical reteaching plan: 3-4 bullet points, each naming the concept ` +
+      `to revisit and one concrete classroom way to reteach it. Plain text, no markdown headings.`;
+    const answer = await generate({ prompt, temperature: 0.5, maxOutputTokens: 400 });
+    res.json({ answer: answer?.trim() || "" });
+  } catch (err) {
+    console.error("insights error:", err);
+    res.status(502).json({ error: "Gemini request failed" });
+  }
+});
+
+/* ── Auto-generate exam-style questions for a lab (worksheet + answer key) ── */
+app.post("/api/worksheet", async (req, res) => {
+  if (!ensureReady(res)) return;
+  const { title, cls, subject, chapter, aim, theory, items, categories } = req.body || {};
+  try {
+    const prompt =
+      `Create exam-style practice questions for an NCERT ${cls || ""} ${subject || ""} practical titled "${title}".\n` +
+      `Chapter: ${chapter || ""}. Aim: ${aim || ""}. Concept: ${theory || ""}.\n` +
+      `Items studied: ${(items || []).join(", ")}. Groups: ${(categories || []).join(", ")}.\n` +
+      `Return ONLY JSON of this exact shape:\n` +
+      `{"mcqs":[{"q":"<question>","options":["<a>","<b>","<c>","<d>"],"ans":<0-based index>}],` +
+      `"short":[{"q":"<question>","a":"<model answer>"}]}\n` +
+      `Give exactly 4 MCQs and 3 short-answer questions, syllabus-accurate and age-appropriate for Class 6-10.`;
+    const raw = await generate({ prompt, temperature: 0.5, maxOutputTokens: 900, json: true });
+    let parsed;
+    try { parsed = JSON.parse(raw); } catch { parsed = { mcqs: [], short: [] }; }
+    res.json({ mcqs: parsed.mcqs || [], short: parsed.short || [] });
+  } catch (err) {
+    console.error("worksheet error:", err);
     res.status(502).json({ error: "Gemini request failed" });
   }
 });

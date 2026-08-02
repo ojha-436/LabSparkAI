@@ -7,11 +7,11 @@ import React from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import { C } from "./tokens.js";
-import { Ic, Btn, SparkAvatar, VoiceWaveform } from "./ui.jsx";
+import { Ic, Btn, SparkAvatar, VoiceWaveform, useIsMobile } from "./ui.jsx";
 import { GlassMaterial, LabRoom, BenchInstruments, SceneEnv } from "./lab3dscene.jsx";
 import { Item3D, BarMagnet, ConductivityTester, LightRig, ThermoRig, Magnifier, GlowRig, BurnRig, ReflectRig, SlideRig, StatesRig, OpticsRig } from "./labitems3d.jsx";
 import { AskSpark } from "./askspark.jsx";
-import { gradeLab } from "./api.js";
+import { gradeLab, sparkExplain } from "./api.js";
 import { speak, cancelSpeech, loadClipManifest } from "./speech.js";
 
 const { useState: gUS, useEffect: gUE, useRef: gUR, useCallback: gUC } = React;
@@ -279,17 +279,28 @@ function GenScene({ spec, items, active, tested, onExamine }) {
 
 export function GenLab3D({ spec, onExit, onComplete, addXp }) {
   const items = spec.items;
+  const isMobile = useIsMobile();
+  const socratic = !!(spec.socratic && spec.socratic.enabled);
   const [tested, setTested] = gUS({});
   const [verdicts, setVerdicts] = gUS({});
+  const [predictions, setPredictions] = gUS({}); // itemId -> { category, reason }
+  const [predictFor, setPredictFor] = gUS(null); // item awaiting a prediction (opens the overlay)
+  const [predReason, setPredReason] = gUS("");
   const [active, setActive] = gUS(null);
   const [graded, setGraded] = gUS(false);
   const [voiceOn, setVoiceOn] = gUS(true);
   const [speaking, setSpeaking] = gUS(false);
   const [mood, setMood] = gUS("happy");
-  const [msg, setMsg] = gUS(`Welcome to the ${spec.title} lab! ${spec.aim} Drag to look around, then tap a sample on the bench to examine it.`);
+  const [msg, setMsg] = gUS(
+    socratic
+      ? `Welcome to the ${spec.title} lab! ${spec.aim} Here we work like real scientists — before each test, I'll ask you to predict what happens. Tap a sample on the bench to make your first prediction.`
+      : `Welcome to the ${spec.title} lab! ${spec.aim} Drag to look around, then tap a sample on the bench to examine it.`
+  );
   const [showQuiz, setShowQuiz] = gUS(false);
   const [picked, setPicked] = gUS(null);
   const answeredRef = gUR(false);
+
+  const labelFor = (key) => { const c = (spec.categories || []).find((c) => c.key === key); return c ? c.label : key; };
 
   gUE(() => { loadClipManifest(); return () => cancelSpeech(); }, []);
 
@@ -303,7 +314,46 @@ export function GenLab3D({ spec, onExit, onComplete, addXp }) {
   const allTested = testedCount === items.length;
   const allVerdicts = items.every((i) => verdicts[i.id]);
 
-  const examine = (item) => { setActive(item.id); setTested((t) => ({ ...t, [item.id]: true })); say(item.fact); };
+  // Reveal the sample (run the 3D test + narrate). In Socratic mode the narration
+  // becomes a prediction-vs-result contrast; otherwise it's the plain fact.
+  const reveal = (item, pred) => {
+    setActive(item.id);
+    setTested((t) => ({ ...t, [item.id]: true }));
+    if (socratic && pred) explainPrediction(item, pred);
+    else say(item.fact);
+  };
+
+  // Contrast the student's prediction with what actually happened. Hits use a free
+  // local template; only MISSES call Gemini (the moment that needs real teaching).
+  const explainPrediction = async (item, pred) => {
+    const hit = pred.category === item.category;
+    const predLabel = labelFor(pred.category), correctLabel = labelFor(item.category);
+    if (hit) { addXp(5); say(`Great prediction — you said ${predLabel}, and you're right! ${item.fact}`); return; }
+    // instant free feedback first, then refine with Gemini if reachable
+    say(`Good scientific guess! You predicted ${predLabel}. Let's see what really happens… ${item.fact}`);
+    try {
+      const better = await sparkExplain({
+        experiment: `${spec.cls} ${spec.subject} — ${spec.title}`,
+        item: item.name, prediction: predLabel, actual: correctLabel, reason: pred.reason, wasCorrect: false,
+      });
+      if (better) say(better);
+    } catch { /* keep the local template */ }
+  };
+
+  const examine = (item) => {
+    // Socratic gate: first tap on an un-predicted item opens the prediction overlay.
+    if (socratic && !predictions[item.id]) { setPredictFor(item); setPredReason(""); return; }
+    reveal(item, predictions[item.id]);
+  };
+
+  const submitPrediction = (cat) => {
+    const item = predictFor; if (!item) return;
+    const pred = { category: cat, reason: predReason.trim() };
+    setPredictions((p) => ({ ...p, [item.id]: pred }));
+    setPredictFor(null); setPredReason("");
+    reveal(item, pred);
+  };
+
   const setVerdict = (id, cat) => { if (!graded) setVerdicts((v) => ({ ...v, [id]: cat })); };
 
   const answerQuiz = (idx) => {
@@ -318,11 +368,19 @@ export function GenLab3D({ spec, onExit, onComplete, addXp }) {
     setGraded(true);
     const xp = 30 + correct * 8; addXp(xp); setMood("celebrate");
     say(`Great work! You classified ${correct} of ${items.length} correctly. Compiling your lab report.`);
-    const observations = items.map((i) => ({ name: i.name, correct: i.category, studentVerdict: verdicts[i.id] }));
+    const observations = items.map((i) => ({
+      name: i.name, correct: i.category, studentVerdict: verdicts[i.id],
+      prediction: predictions[i.id]?.category ?? null,
+      predictionReason: predictions[i.id]?.reason ?? null,
+    }));
+    // Inquiry signal: how often the student's up-front hypothesis matched reality.
+    const predicted = observations.filter((o) => o.prediction);
+    const predictionAccuracy = predicted.length
+      ? predicted.filter((o) => o.prediction === o.correct).length / predicted.length : null;
     const minDelay = new Promise((r) => setTimeout(r, 2600));
     const feedback = gradeLab({ experiment: `${spec.cls} ${spec.subject} — ${spec.title}`, observations }).then((g) => g.feedback).catch(() => null);
     Promise.all([feedback, minDelay]).then(([aiFeedback]) => {
-      onComplete({ experimentId: spec.id, correct, total: items.length, xp, aiFeedback, generic: true, title: spec.title, aim: spec.aim, conclusion: spec.conclusion, observations, chapter: spec.chapter, cls: spec.cls, subject: spec.subject });
+      onComplete({ experimentId: spec.id, correct, total: items.length, xp, aiFeedback, generic: true, title: spec.title, aim: spec.aim, conclusion: spec.conclusion, observations, predictionAccuracy, chapter: spec.chapter, cls: spec.cls, subject: spec.subject });
     });
   };
 
@@ -353,10 +411,10 @@ export function GenLab3D({ spec, onExit, onComplete, addXp }) {
         </div>
       </div>
 
-      <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: isMobile ? "column" : "row", minHeight: 0 }}>
         {/* left: 3D + table */}
         <div style={{ flex: 1, overflowY: "auto", position: "relative" }} className="blueprint-grid">
-          <div style={{ maxWidth: 900, margin: "0 auto", padding: "20px 28px 80px" }}>
+          <div style={{ maxWidth: 900, margin: "0 auto", padding: isMobile ? "14px 14px 64px" : "20px 28px 80px" }}>
             {/* NCERT info */}
             <div className="card-glass" style={{ background: C.cream, borderRadius: 12, padding: "14px 18px", marginBottom: 18, borderLeft: `4px solid ${spec.accent}` }}>
               <span className="mono" style={{ fontSize: 9.5, fontWeight: 700, color: spec.accent, letterSpacing: "0.06em" }}>{spec.chapter}</span>
@@ -364,7 +422,7 @@ export function GenLab3D({ spec, onExit, onComplete, addXp }) {
             </div>
 
             {/* 3D viewport */}
-            <div style={{ height: 440, borderRadius: 16, overflow: "hidden", border: `1px solid ${C.line}`, marginBottom: 22, boxShadow: "0 12px 40px rgba(15,23,42,0.10)", background: "#eef2f6" }}>
+            <div style={{ height: isMobile ? 300 : 440, borderRadius: 16, overflow: "hidden", border: `1px solid ${C.line}`, marginBottom: isMobile ? 16 : 22, boxShadow: "0 12px 40px rgba(15,23,42,0.10)", background: "#eef2f6" }}>
               <Canvas shadows dpr={[1, 2]} camera={{ position: [0, 1.0, 3.0], fov: 45 }}>
                 <GenScene spec={spec} items={items} active={active} tested={tested} onExamine={examine} />
               </Canvas>
@@ -460,6 +518,35 @@ export function GenLab3D({ spec, onExit, onComplete, addXp }) {
           </div>
         </aside>
       </div>
+
+      {/* ── Socratic prediction overlay — shown before a sample is revealed ── */}
+      {predictFor && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(15,23,42,0.55)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div className="card-glass" style={{ background: C.paper, borderRadius: 18, padding: "26px 28px", maxWidth: 460, width: "100%", boxShadow: "0 24px 60px rgba(15,23,42,0.3)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              <Ic n="spark" s={16} c={spec.accent} sw={2} />
+              <span className="mono" style={{ fontSize: 10, fontWeight: 700, color: spec.accent, letterSpacing: "0.06em" }}>MAKE YOUR PREDICTION</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 9, margin: "10px 0 12px" }}>
+              <span style={{ width: 16, height: 16, borderRadius: 5, background: predictFor.color, border: `1px solid ${C.line}` }} />
+              <span style={{ fontSize: 17, fontWeight: 800, color: C.ink }}>{predictFor.name}</span>
+            </div>
+            <p style={{ fontSize: 13.5, color: C.ink70, lineHeight: 1.5, marginBottom: 16 }}>{spec.socratic.predictPrompt}</p>
+            <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+              {spec.categories.map((c) => (
+                <button key={c.key} onClick={() => submitPrediction(c.key)} className="press" style={{ flex: 1, minWidth: 130, cursor: "pointer", border: `1.5px solid ${c.color}`, background: c.color + "12", color: C.ink, borderRadius: 12, padding: "12px 14px", textAlign: "left" }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: c.color }}>{c.label}</div>
+                  {c.desc && <div style={{ fontSize: 11, color: C.ink50, marginTop: 2 }}>{c.desc}</div>}
+                </button>
+              ))}
+            </div>
+            <label style={{ fontSize: 11, fontWeight: 700, color: C.ink50, display: "block", marginBottom: 5 }}>Why do you think so? (optional)</label>
+            <textarea value={predReason} onChange={(e) => setPredReason(e.target.value)} rows={2} placeholder="Because…"
+              style={{ width: "100%", resize: "vertical", border: `1.5px solid ${C.line}`, borderRadius: 10, padding: "9px 12px", fontSize: 13, fontFamily: "inherit", color: C.ink, outline: "none", background: C.cream }} />
+            <div style={{ fontSize: 11, color: C.ink30, marginTop: 10, textAlign: "center" }}>Pick a prediction above — then watch what really happens.</div>
+          </div>
+        </div>
+      )}
 
       <AskSpark experiment={`${spec.cls} ${spec.subject} — ${spec.title}. ${spec.aim}`} getLabState={() => ({ examined: `${testedCount}/${items.length}`, activeItem: active })} />
     </div>

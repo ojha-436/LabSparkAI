@@ -1,16 +1,18 @@
 /* ── Student Dashboard / Home ── */
 import React from "react";
 import { C } from "./tokens.js";
-import { Ic, Btn, Chip, SparkAvatar, useReveal } from "./ui.jsx";
+import { Ic, Btn, Chip, SparkAvatar, useReveal, useIsMobile } from "./ui.jsx";
 import { CATALOG } from "./data.js";
 import { Avatar } from "./profile.jsx";
 import firebase from "./firebaseInit.js";
-const { useState: dUS } = React;
+import { watchAssignments, watchLive, heartbeat } from "./classroom.js";
+const { useState: dUS, useEffect: dUE } = React;
 
 const CLASS_ORDER = ["Class 6", "Class 7", "Class 8", "Class 9", "Class 10"];
 
 function Dashboard({ student, onOpen, onBackToLanding, onEditProfile, onOpenProgress, onOpenAchievements, onOpenPractical, onOpenJoin, onOpenFamily }) {
   const ref = useReveal();
+  const isMobile = useIsMobile();
   const featured = CATALOG[0];
   const lvlPct = (student.xp % 200) / 2;
   const [openClass, setOpenClass] = dUS(null);
@@ -21,10 +23,12 @@ function Dashboard({ student, onOpen, onBackToLanding, onEditProfile, onOpenProg
       {/* Navbar */}
       <DashNav student={student} onBack={onBackToLanding} onEditProfile={onEditProfile} />
 
-      <div style={{ display: "flex", flex: 1, maxWidth: 1240, width: "100%", margin: "0 auto", padding: "0 24px" }}>
-        
-        {/* Sidebar Nav */}
-        <aside style={{ width: 220, borderRight: `1px solid ${C.line}`, padding: "30px 16px 30px 0", display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", flex: 1, maxWidth: 1240, width: "100%", margin: "0 auto", padding: isMobile ? "0 14px" : "0 24px" }}>
+
+        {/* Sidebar Nav (desktop) / horizontal scroll strip (mobile) */}
+        <aside style={isMobile
+          ? { display: "flex", flexDirection: "row", gap: 8, overflowX: "auto", padding: "12px 0", borderBottom: `1px solid ${C.line}`, flexShrink: 0 }
+          : { width: 220, borderRight: `1px solid ${C.line}`, padding: "30px 16px 30px 0", display: "flex", flexDirection: "column", gap: 6 }}>
           {[
             { id: "bench", l: "Virtual Workbench", ic: "home", active: true, go: () => {} },
             { id: "analytics", l: "Class Progress", ic: "chart", go: onOpenProgress },
@@ -51,26 +55,30 @@ function Dashboard({ student, onOpen, onBackToLanding, onEditProfile, onOpenProg
                 border: "none",
                 cursor: "pointer",
                 textAlign: "left",
-                width: "100%"
+                whiteSpace: "nowrap",
+                flexShrink: 0,
+                width: isMobile ? "auto" : "100%"
               }}
             >
               <Ic n={m.ic} s={16} c={m.active ? C.em : C.ink30} sw={2} />
               {m.l}
             </button>
           ))}
-          <div style={{ marginTop: "auto", borderTop: `1px solid ${C.line}`, paddingTop: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, background: C.paperWarm, padding: 12, borderRadius: 8 }}>
-              <SparkAvatar size={30} />
-              <div>
-                <div style={{ fontSize: 11.5, fontWeight: 700, color: C.ink70 }}>Spark Active</div>
-                <div style={{ fontSize: 9.5, color: C.ink50 }} className="mono">v1.5-flash-grounded</div>
+          {!isMobile && (
+            <div style={{ marginTop: "auto", borderTop: `1px solid ${C.line}`, paddingTop: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, background: C.paperWarm, padding: 12, borderRadius: 8 }}>
+                <SparkAvatar size={30} />
+                <div>
+                  <div style={{ fontSize: 11.5, fontWeight: 700, color: C.ink70 }}>Spark Active</div>
+                  <div style={{ fontSize: 9.5, color: C.ink50 }} className="mono">v1.5-flash-grounded</div>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </aside>
 
         {/* Main Content Area */}
-        <main style={{ flex: 1, padding: "30px 0 80px 32px" }}>
+        <main style={{ flex: 1, minWidth: 0, padding: isMobile ? "20px 0 72px 0" : "30px 0 80px 32px" }}>
           
           {/* Greeting Row */}
           <div className="reveal r1" style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 30, flexWrap: "wrap" }}>
@@ -84,11 +92,14 @@ function Dashboard({ student, onOpen, onBackToLanding, onEditProfile, onOpenProg
             <LevelCard student={student} pct={lvlPct} />
           </div>
 
+          {/* Assigned labs + live class banner (from joined classes) */}
+          <ClassAssignments memberships={student.classes || []} student={student} onOpen={onOpen} />
+
           {/* Featured Card */}
-          <FeaturedCard exp={featured} onOpen={onOpen} className="reveal r2" />
+          <FeaturedCard exp={featured} onOpen={onOpen} isMobile={isMobile} className="reveal r2" />
 
           {/* Quick Metrics */}
-          <div className="reveal r3" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, margin: "28px 0 40px" }}>
+          <div className="reveal r3" style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: isMobile ? 10 : 16, margin: "28px 0 40px" }}>
             {[
               { ic: "flask", n: student.done, l: "Experiments Completed", c: C.emBright, go: onOpenProgress },
               { ic: "bolt", n: student.xp, l: "Total XP Accrued", c: C.gold },
@@ -172,6 +183,72 @@ function Dashboard({ student, onOpen, onBackToLanding, onEditProfile, onOpenProg
           )}
         </main>
       </div>
+    </div>
+  );
+}
+
+/* Assigned labs + a live-class "Join now" banner, aggregated across joined classes. */
+function ClassAssignments({ memberships, student, onOpen }) {
+  const [byClass, setByClass] = dUS({});
+  const codes = (memberships || []).map((m) => m.code).join(",");
+  dUE(() => {
+    const unsubs = [];
+    (memberships || []).forEach((m) => {
+      unsubs.push(watchAssignments(m.code, (a) => setByClass((s) => ({ ...s, [m.code]: { ...(s[m.code] || {}), assignments: a, membership: m } }))));
+      unsubs.push(watchLive(m.code, (l) => setByClass((s) => ({ ...s, [m.code]: { ...(s[m.code] || {}), live: l, membership: m } }))));
+    });
+    return () => unsubs.forEach((u) => u && u());
+  }, [codes]);
+
+  const lives = Object.values(byClass).filter((c) => c.live && c.live.active);
+  const seen = new Set();
+  const assigns = Object.values(byClass).flatMap((c) => (c.assignments || []).map((a) => ({ ...a, membership: c.membership })))
+    .filter((a) => { if (seen.has(a.labId)) return false; seen.add(a.labId); return true; });
+  const completed = new Set((student.completions || []).map((c) => c.id));
+
+  if (!lives.length && !assigns.length) return null;
+
+  const launch = (labId, membership, isLive) => {
+    if (membership) heartbeat(membership, student, { labId, status: isLive ? "in-lab" : "joined", stepPct: 0 }).catch(() => {});
+    onOpen(labId);
+  };
+
+  return (
+    <div style={{ marginBottom: 24 }}>
+      {lives.map((c) => (
+        <div key={c.membership.code} className="reveal r2" style={{ display: "flex", alignItems: "center", gap: 14, background: C.emDeep, color: "#fff", borderRadius: 14, padding: "16px 22px", marginBottom: 12, flexWrap: "wrap" }}>
+          <span style={{ width: 10, height: 10, borderRadius: "50%", background: C.lime, animation: "pulse 1.6s infinite" }} />
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.lime, letterSpacing: "0.05em" }} className="mono">YOUR TEACHER STARTED A LIVE LAB</div>
+            <div style={{ fontSize: 16, fontWeight: 800, marginTop: 2 }}>{c.live.title}</div>
+          </div>
+          <Btn v="primary" icon="play" onClick={() => launch(c.live.labId, c.membership, true)}>Join now</Btn>
+        </div>
+      ))}
+
+      {assigns.length > 0 && (
+        <div style={{ background: C.cream, border: `1px solid ${C.line}`, borderRadius: 14, padding: "16px 20px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <Ic n="grid" s={16} c={C.sky} sw={2} />
+            <span style={{ fontSize: 13.5, fontWeight: 800, color: C.ink }}>Assigned by your teacher</span>
+            <span className="mono" style={{ fontSize: 10, color: C.ink30, marginLeft: "auto" }}>{assigns.length} LAB{assigns.length !== 1 ? "S" : ""}</span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 12 }}>
+            {assigns.map((a) => {
+              const done = completed.has(a.labId);
+              return (
+                <div key={a.labId} style={{ display: "flex", alignItems: "center", gap: 10, background: C.paperWarm, border: `1px solid ${C.line}`, borderRadius: 10, padding: "10px 12px" }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.title}</div>
+                    <div style={{ fontSize: 10.5, color: done ? C.emDeep : C.ink50 }}>{done ? "✓ Submitted" : `${a.cls || ""} ${a.subject || ""}`.trim()}</div>
+                  </div>
+                  <button onClick={() => launch(a.labId, a.membership, false)} className="press" style={{ cursor: "pointer", background: done ? C.paperWarm : C.ink, color: done ? C.ink50 : "#fff", fontSize: 11.5, fontWeight: 700, padding: "6px 12px", borderRadius: 8, border: done ? `1px solid ${C.line}` : "none" }}>{done ? "Redo" : "Start"}</button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -365,12 +442,12 @@ function LevelCard({ student, pct }) {
   );
 }
 
-function FeaturedCard({ exp, onOpen, className }) {
+function FeaturedCard({ exp, onOpen, className, isMobile }) {
   return (
-    <div className={className} style={{ background: C.ink, color: "#fff", borderRadius: 16, padding: 0, position: "relative", overflow: "hidden", display: "grid", gridTemplateColumns: "1.25fr 0.75fr", border: `1px solid ${C.lineDark}` }}>
+    <div className={className} style={{ background: C.ink, color: "#fff", borderRadius: 16, padding: 0, position: "relative", overflow: "hidden", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.25fr 0.75fr", border: `1px solid ${C.lineDark}` }}>
       <div style={{ position: "absolute", top: "-50%", right: "20%", width: 380, height: 380, borderRadius: "50%", background: `radial-gradient(circle, ${C.em}25, transparent 65%)`, pointerEvents: "none" }} />
-      
-      <div style={{ padding: "34px 40px", position: "relative", zIndex: 2 }}>
+
+      <div style={{ padding: isMobile ? "24px 22px" : "34px 40px", position: "relative", zIndex: 2 }}>
         <Chip c={C.emBright} bg="rgba(13,148,136,0.12)" icon="play">RESUME EXPERIMENT BENCH</Chip>
         <h3 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1.15, margin: "14px 0 10px" }}>{exp.name}</h3>
         <p style={{ fontSize: 14, color: C.ink30, maxWidth: 440, lineHeight: 1.55, marginBottom: 20 }}>{exp.blurb}</p>
@@ -383,10 +460,12 @@ function FeaturedCard({ exp, onOpen, className }) {
         </div>
         <Btn v="primary" lg icon="arrow" onClick={() => onOpen(exp.id)}>Enter Laboratory</Btn>
       </div>
-      
-      <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", borderLeft: `1px solid ${C.lineInk}` }}>
-        <BeakerArt />
-      </div>
+
+      {!isMobile && (
+        <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", borderLeft: `1px solid ${C.lineInk}` }}>
+          <BeakerArt />
+        </div>
+      )}
     </div>
   );
 }

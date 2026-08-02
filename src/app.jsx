@@ -44,6 +44,8 @@ function App() {
   const firstRef = React.useRef(true);
   const pendingRoleRef = React.useRef(""); // role chosen on the sign-up screen, captured before auth fires
   const pendingNameRef = React.useRef(""); // name entered on sign-up, captured before displayName propagates
+  // A ?join=CODE deep link (shared by a teacher) routes a student straight to the join screen.
+  const joinParamRef = React.useRef(typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("join") : null);
   React.useEffect(() => {
     window.history.replaceState({ view: "landing" }, "");
     const onPop = (e) => { popRef.current = true; setView((e.state && e.state.view) || "landing"); };
@@ -95,7 +97,8 @@ function App() {
             setView("rolesetup"); // legacy/unknown — ask once
           } else {
             if (data.role === "student") initStudent(data, ref);
-            setView(homeFor(data.role));
+            // Honor a ?join=CODE deep link for students; otherwise land on the role home.
+            setView(joinParamRef.current && data.role === "student" ? "join" : homeFor(data.role));
           }
         } catch {
           setStudent((s) => ({ ...s, ...base }));
@@ -160,6 +163,7 @@ function App() {
       date: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
       correct: data.correct, total: data.total, xp: data.xp,
       observations: data.observations || [], aim: data.aim || "", conclusion: data.conclusion || "",
+      predictionAccuracy: typeof data.predictionAccuracy === "number" ? data.predictionAccuracy : null,
       chapter: data.chapter || "", cls: data.cls || "", subject: data.subject || "", aiFeedback: data.aiFeedback || "",
     };
     setStudent((s) => {
@@ -264,7 +268,7 @@ function App() {
       )}
 
       {view === "join" && (
-        <JoinClassPage student={student} onBack={() => setView("dashboard")} onJoined={onJoined} />
+        <JoinClassPage student={student} initialCode={joinParamRef.current} onBack={() => setView("dashboard")} onJoined={onJoined} />
       )}
 
       {view === "family" && (

@@ -54,6 +54,26 @@ export async function gradeLab({ experiment, observations }) {
   return await postJSON("/api/grade", { experiment, observations });
 }
 
+/* Socratic explain — contrast a prediction with the observed result. Called only
+   on a misprediction (hits use a free local template). Returns a string. */
+export async function sparkExplain({ experiment, item, prediction, actual, reason, wasCorrect }) {
+  const data = await postJSON("/api/spark/explain", { experiment, item, prediction, actual, reason, wasCorrect });
+  return data.answer;
+}
+
+/* Teacher intelligence — turn aggregated class misconceptions into a reteaching
+   plan. Returns a string (caller falls back to the raw data list on failure). */
+export async function generateInsights(payload) {
+  const data = await postJSON("/api/insights", payload, 15000);
+  return data.answer;
+}
+
+/* Generate exam-style questions for a lab. Returns { mcqs, short } (caller falls
+   back to a spec-only worksheet on failure). */
+export async function generateWorksheet(payload) {
+  return await postJSON("/api/worksheet", payload, 22000);
+}
+
 export function apiBase() {
   return API_BASE;
 }

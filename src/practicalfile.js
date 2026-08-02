@@ -118,8 +118,15 @@ function labSection(doc, c, idx) {
   if (obs || (spec && spec.items)) {
     doc.setFont("helvetica", "bold").setFontSize(9).setTextColor(...GREEN);
     doc.text("OBSERVATION TABLE", 14, y); y += 2;
+    // Add a Hypothesis column when the student recorded predictions (Socratic labs).
+    const hasPred = obs && obs.some((o) => o.prediction);
+    const head = hasPred
+      ? [["#", "Sample / Item", "Predicted", "Your Answer", "Correct", "Remark"]]
+      : [["#", "Sample / Item", "Your Answer", "Correct", "Remark"]];
     const body = obs
-      ? obs.map((o, i) => [i + 1, o.name, labelOf(spec, o.studentVerdict), labelOf(spec, o.correct), o.studentVerdict === o.correct ? "Correct" : "Review"])
+      ? obs.map((o, i) => hasPred
+          ? [i + 1, o.name, o.prediction ? labelOf(spec, o.prediction) : "—", labelOf(spec, o.studentVerdict), labelOf(spec, o.correct), o.studentVerdict === o.correct ? "Correct" : "Review"]
+          : [i + 1, o.name, labelOf(spec, o.studentVerdict), labelOf(spec, o.correct), o.studentVerdict === o.correct ? "Correct" : "Review"])
       : spec.items.map((it, i) => [i + 1, it.name, "—", labelOf(spec, it.category), ""]);
     autoTable(doc, {
       startY: y + 2,
@@ -127,8 +134,8 @@ function labSection(doc, c, idx) {
       theme: "grid",
       headStyles: { fillColor: INK, textColor: [255, 255, 255], fontSize: 8.5 },
       styles: { fontSize: 9, cellPadding: 2.5, lineColor: LINE, textColor: INK },
-      columnStyles: { 0: { cellWidth: 10 }, 4: { cellWidth: 22 } },
-      head: [["#", "Sample / Item", "Your Answer", "Correct", "Remark"]],
+      columnStyles: { 0: { cellWidth: 10 } },
+      head,
       body,
     });
     y = doc.lastAutoTable.finalY + 6;
@@ -153,6 +160,16 @@ function labSection(doc, c, idx) {
   doc.setFont("helvetica", "bold").setFontSize(10).setTextColor(...INK);
   if (typeof c.correct === "number" && typeof c.total === "number") {
     doc.text(`Score: ${c.correct} / ${c.total}`, 14, y);
+  }
+  // Internal-assessment marks (teacher-approved mark wins over the AI draft).
+  if (typeof c.teacherMark === "number" || typeof c.aiMark === "number") {
+    const hasT = typeof c.teacherMark === "number";
+    const m = hasT ? c.teacherMark : c.aiMark;
+    const max = c.aiMarkMax || 5;
+    doc.text(`Marks: ${m} / ${max}`, W / 2, y, { align: "center" });
+    doc.setFont("helvetica", "normal").setFontSize(7.5).setTextColor(...SUB);
+    doc.text(hasT && c.marksApproved ? "teacher-assessed" : "AI draft — pending teacher approval", W / 2, y + 3.6, { align: "center" });
+    doc.setFont("helvetica", "bold").setFontSize(10).setTextColor(...INK);
   }
   doc.setFont("helvetica", "normal").setTextColor(...SUB);
   if (c.date) doc.text(`Date: ${c.date}`, W - 14, y, { align: "right" });

@@ -105,6 +105,22 @@ function useReveal() {
   return ref;
 }
 
+/* Responsive breakpoint hook — true on phone-width screens (<768px). Used to
+   switch inline layouts (sidebars → mobile nav, 3D HUD → bottom sheet). */
+function useIsMobile(bp = 768) {
+  const q = `(max-width:${bp}px)`;
+  const [m, setM] = _uS(() => typeof window !== "undefined" && window.matchMedia(q).matches);
+  _uE(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia(q);
+    const on = () => setM(mq.matches);
+    on();
+    mq.addEventListener ? mq.addEventListener("change", on) : mq.addListener(on);
+    return () => (mq.removeEventListener ? mq.removeEventListener("change", on) : mq.removeListener(on));
+  }, [q]);
+  return m;
+}
+
 /* Sleek Gemini Spark AI Avatar */
 function SparkAvatar({ size = 40, mood = "happy", glow }) {
   return (
@@ -172,4 +188,4 @@ function Chip({ children, c = C.ink70, bg, icon, style }) {
   );
 }
 
-export { Ic, Btn, VoiceWaveform, useReveal, SparkAvatar, Chip };
+export { Ic, Btn, VoiceWaveform, useReveal, useIsMobile, SparkAvatar, Chip };

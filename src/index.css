@@ -1859,4 +1859,39 @@ h1, h2, h3, h4, h5, h6, .font-display {
   to { transform: translateY(-3px); }
 }
 
+/* ================================================================
+   Mobile / Android responsive layer (phones ≤ 768px)
+   Structural inline layouts are switched in JS via useIsMobile();
+   this block covers the class-based pieces + global mobile safety.
+   ================================================================ */
+
+/* Faster taps, no double-tap zoom on controls, respect notch insets. */
+button, a, .press { touch-action: manipulation; }
+body { -webkit-text-size-adjust: 100%; }
+
+@media (max-width: 768px) {
+  /* Prevent iOS zoom-on-focus (needs ≥16px) for all text fields. */
+  input, textarea, select { font-size: 16px !important; }
+
+  /* 3D-lab Spark HUD: side panel → full-width stacked sheet. */
+  .voice-hud-panel {
+    width: 100% !important;
+    height: auto !important;
+    border-left: none !important;
+    border-top: 1px solid #e2e8f0;
+    max-height: 46vh;
+  }
+  .voice-hud-soundwave-core { min-height: 84px; }
+  .voice-hud-header { padding: 14px 16px; }
+  .voice-hud-controls { padding: 14px 16px 18px; }
+  .voice-overlay-msg { margin: 12px; padding: 12px 14px; }
+
+  /* Report / certificate: tighten heavy desktop padding. */
+  .transcript-certificate { padding: 18px !important; }
+  .transcript-header-box { padding-bottom: 14px; margin-bottom: 16px; }
+
+  /* Safe-area padding for gesture-nav / notch on standalone PWA. */
+  body { padding-bottom: env(safe-area-inset-bottom); }
+}
+
 

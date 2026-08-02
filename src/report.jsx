@@ -229,6 +229,11 @@ function GenericReport({ data, student, onHome, onRetry, confetti }) {
           <div style={{ display: "inline-block", animation: "sparkle 1.8s infinite", marginBottom: 14 }}><BadgeMedal perfect={perfect} /></div>
           <h2 style={{ fontSize: "clamp(24px, 4vw, 34px)", fontWeight: 800, color: C.ink, letterSpacing: "-0.03em" }}>{perfect ? "Perfect Lab! 🏆" : "Lab Complete! 🎉"}</h2>
           <p style={{ fontSize: 14, color: C.ink50, marginTop: 8 }}>You classified <b style={{ color: C.emBright }}>{correct} of {total}</b> correctly in {data.title || spec.title}.</p>
+          {typeof data.predictionAccuracy === "number" && (
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 12, background: C.violetPale, color: C.violet, borderRadius: 99, padding: "6px 14px", fontSize: 12.5, fontWeight: 700 }}>
+              <Ic n="spark" s={13} c={C.violet} sw={2} /> Scientist's instinct: {Math.round(data.predictionAccuracy * 100)}% of your predictions were right
+            </div>
+          )}
         </div>
         <div className="reveal r2" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 28 }}>
           {[{ ic: "bolt", n: "+" + xp + " XP", l: "XP Accrued", c: C.gold }, { ic: "target", n: Math.round((correct / total) * 100) + "%", l: "Accuracy", c: C.emBright }, { ic: "medal", n: "1 Badge", l: spec.title || "Lab Master", c: C.coral }].map((s, i) => (
