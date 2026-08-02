@@ -63,7 +63,11 @@ function LoginPage({ onLogin, onBack, onRoleHint }) {
 
   const handleGoogleSubmit = () => {
     setError("");
-    if (onRoleHint) onRoleHint(role);
+    // Only hint a role when the chooser was actually shown (Sign Up tab). On the
+    // Sign In tab, send "" so a brand-new Google user (teacher/parent) lands on the
+    // role-setup screen instead of being silently forced to "student".
+    const hintRole = activeTab === "signup" ? role : "";
+    if (onRoleHint) onRoleHint(hintRole);
     setLoadingGoogle(true);
     // Popup uses the default (registered) auth handler and returns the result via
     // postMessage — no cross-origin redirect, so no redirect_uri_mismatch and no
@@ -72,7 +76,7 @@ function LoginPage({ onLogin, onBack, onRoleHint }) {
     firebase.auth().signInWithPopup(provider)
       .then((result) => {
         setLoadingGoogle(false);
-        onLogin(result.user.displayName || result.user.email, role);
+        onLogin(result.user.displayName || result.user.email, hintRole);
       })
       .catch((err) => {
         setLoadingGoogle(false);

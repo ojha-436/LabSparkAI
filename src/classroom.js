@@ -50,17 +50,9 @@ export async function joinClass(code, student) {
   if (!cls) throw new Error("No class found with that code. Check the code with your teacher.");
   const uid = firebase.auth().currentUser && firebase.auth().currentUser.uid;
   if (!uid) throw new Error("Please sign in first.");
-  // If the teacher pre-rostered the class, auto-fill this student's roll number
-  // by matching their name — so they don't have to type it.
-  let rollNo = student.rollNo || "";
-  if (!rollNo) {
-    try {
-      const norm = (s) => (s || "").trim().toLowerCase();
-      const snap = await db.collection("classes").doc(cls.code).collection("roster").get();
-      const match = snap.docs.map((d) => d.data()).find((r) => norm(r.name) === norm(student.name));
-      if (match && match.rollNo) rollNo = match.rollNo;
-    } catch { /* roster is optional */ }
-  }
+  // Roll number comes from the student's own profile. (We intentionally do NOT
+  // read the class roster here — it's teacher-only for privacy.)
+  const rollNo = student.rollNo || "";
   await db.collection("classes").doc(cls.code).collection("members").doc(uid).set({
     studentUid: uid, teacherUid: cls.teacherUid,
     name: student.name || "Student", rollNo, joinedAt: Date.now(),
@@ -206,7 +198,8 @@ export async function addRosterEntries(code, entries) {
   await batch.commit();
 }
 export function watchExpected(code, cb) {
-  return db.collection("classes").doc(code).collection("roster").onSnapshot(
+  // Filter by teacherUid so the query matches the teacher-only roster read rule.
+  return db.collection("classes").doc(code).collection("roster").where("teacherUid", "==", myUid()).onSnapshot(
     (q) => cb(q.docs.map((d) => d.data()).sort((a, b) => (a.rollNo || "").localeCompare(b.rollNo || "", undefined, { numeric: true }))), () => {});
 }
 

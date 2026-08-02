@@ -42,9 +42,7 @@ function App() {
   // between in-app views (e.g. lab → dashboard) instead of leaving the site.
   const popRef = React.useRef(false);
   const firstRef = React.useRef(true);
-  // Role chosen before a Google redirect is stashed in sessionStorage so it
-  // survives the reload; seed the ref from it on load.
-  const pendingRoleRef = React.useRef((typeof sessionStorage !== "undefined" && sessionStorage.getItem("ls_pending_role")) || ""); // role chosen on the sign-up screen, captured before auth fires
+  const pendingRoleRef = React.useRef(""); // role chosen on the sign-up screen, captured before auth fires
   const pendingNameRef = React.useRef(""); // name entered on sign-up, captured before displayName propagates
   // A ?join=CODE deep link (shared by a teacher) routes a student straight to the join screen.
   const joinParamRef = React.useRef(typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("join") : null);
@@ -73,14 +71,6 @@ function App() {
 
   const logout = () => { firebase.auth().signOut().catch(() => {}); };
 
-  // Complete a Google redirect sign-in (surfaces errors; success is handled by
-  // onAuthStateChanged below). Clears the stashed role hint once consumed.
-  React.useEffect(() => {
-    firebase.auth().getRedirectResult()
-      .then((res) => { if (res && res.user) { try { sessionStorage.removeItem("ls_pending_role"); } catch { /* ignore */ } } })
-      .catch(() => {});
-  }, []);
-
   React.useEffect(() => {
     const unsubscribe = firebase.auth().onAuthStateChanged(async (user) => {
       if (user) {
@@ -103,6 +93,9 @@ function App() {
             ref.set(data, { merge: true }).catch(() => {});
           }
           setStudent(data);
+          // Consume the one-shot sign-up hints so a later different user in the
+          // same tab can't inherit this user's name/role.
+          pendingNameRef.current = ""; pendingRoleRef.current = "";
           if (!data.role) {
             setView("rolesetup"); // legacy/unknown — ask once
           } else {

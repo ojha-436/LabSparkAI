@@ -53,9 +53,11 @@ service cloud.firestore {
         allow create: if request.auth != null && request.resource.data.studentUid == request.auth.uid &&
           request.resource.data.teacherUid == get(/databases/$(database)/documents/classes/$(code)).data.teacherUid;
         allow update: if request.auth != null && (
-          // The student re-doing their own lab (owns the record).
+          // The student re-doing their own lab (owns the record) — but may NEVER
+          // touch the mark fields (those are the teacher's, enforced server-side).
           (request.resource.data.studentUid == request.auth.uid &&
-           request.resource.data.teacherUid == get(/databases/$(database)/documents/classes/$(code)).data.teacherUid) ||
+           request.resource.data.teacherUid == get(/databases/$(database)/documents/classes/$(code)).data.teacherUid &&
+           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['teacherMark', 'marksApproved', 'gradedBy', 'gradedAt'])) ||
           // The class teacher grading: ONLY the mark fields may change.
           (request.auth.uid == resource.data.teacherUid &&
            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['teacherMark', 'marksApproved', 'gradedBy', 'gradedAt']))
@@ -77,10 +79,11 @@ service cloud.firestore {
           get(/databases/$(database)/documents/classes/$(code)).data.teacherUid == request.auth.uid;
       }
 
-      // ── Pre-roster (expected students) — teacher writes; any signed-in user can read
-      //    (a joining student reads it to auto-fill their roll number). ──
+      // ── Pre-roster (expected students) — teacher only. Reads are gated to the
+      //    class teacher so classmates' names/roll numbers aren't exposed to
+      //    anyone who merely has the (shared) class code. ──
       match /roster/{docId} {
-        allow read: if request.auth != null;
+        allow read: if request.auth != null && resource.data.teacherUid == request.auth.uid;
         allow write: if request.auth != null &&
           get(/databases/$(database)/documents/classes/$(code)).data.teacherUid == request.auth.uid;
       }
