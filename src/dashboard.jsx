@@ -335,8 +335,8 @@ function DashNav({ student, onBack, onEditProfile }) {
                 
                 <div style={{ marginTop: 14, background: "rgba(255,255,255,0.06)", borderRadius: 8, padding: "8px 12px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <div>
-                    <div style={{ fontSize: 10, color: C.ink30, textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.02em" }}>Current Tier</div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: C.emBright }}>Science Spark Pass (Pro)</div>
+                    <div style={{ fontSize: 10, color: C.ink30, textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.02em" }}>Plan</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.emBright }}>Free</div>
                   </div>
                   <div style={{ background: C.emBright, color: "#fff", fontSize: 9.5, fontWeight: 800, padding: "2px 6px", borderRadius: 4 }}>ACTIVE</div>
                 </div>
@@ -358,27 +358,6 @@ function DashNav({ student, onBack, onEditProfile }) {
                     <div style={{ background: C.cream, padding: "6px 10px", borderRadius: 6, border: `1px solid ${C.lineSoft}` }}>
                       <div style={{ fontSize: 9, color: C.ink50 }}>Badges</div>
                       <div style={{ fontSize: 12, fontWeight: 800, color: C.coral }} className="mono">{student.badges} Unlocked</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ background: C.paperWarm, borderRadius: 10, padding: 12, border: `1px solid ${C.line}` }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                    <Ic n="chart" s={14} c={C.violet} />
-                    <span style={{ fontSize: 12.5, fontWeight: 700, color: C.ink }}>Billing & Subscriptions</span>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11 }}>
-                      <span style={{ color: C.ink50 }}>Spark Pass B2C Tier:</span>
-                      <span style={{ fontWeight: 700, color: C.ink70 }}>$4.99 / Month</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11 }}>
-                      <span style={{ color: C.ink50 }}>Method:</span>
-                      <span style={{ fontWeight: 600, color: C.ink50 }} className="mono">Stripe Sandbox (**** 4242)</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11, borderTop: `1px dashed ${C.line}`, paddingTop: 6, marginTop: 2 }}>
-                      <span style={{ color: C.ink50 }}>Transaction Ledger:</span>
-                      <span style={{ fontWeight: 700, color: C.emDeep }}>1 Live Purchase</span>
                     </div>
                   </div>
                 </div>

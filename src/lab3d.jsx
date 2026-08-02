@@ -11,7 +11,7 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Environment, Lightformer, ContactShadows, Html } from "@react-three/drei";
 import { C } from "./tokens.js";
 import { SUBSTANCES } from "./data.js";
-import { Ic, Btn, SparkAvatar, VoiceWaveform } from "./ui.jsx";
+import { Ic, Btn, SparkAvatar, VoiceWaveform, useIsMobile } from "./ui.jsx";
 import { ResultsTable, IntroOverlay } from "./labpanel.jsx";
 import { GuideBar, dipResult } from "./lab.jsx";
 import { gradeLab } from "./api.js";
@@ -657,6 +657,7 @@ function LabScene({ tubes, activeSub, results, dippedStrip, onSelect }) {
 /* ════════════════ The lab (logic + 3D + HUD) ════════════════ */
 
 function Lab3D({ onExit, onComplete, addXp }) {
+  const isMobile = useIsMobile();
   const [phase, setPhase] = tUS("intro");
   const tubes = SUBSTANCES.filter((s) => RACK_IDS.includes(s.id));
 
@@ -862,13 +863,13 @@ function Lab3D({ onExit, onComplete, addXp }) {
         </div>
       </div>
 
-      <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: isMobile ? "column" : "row", minHeight: 0 }}>
         {/* left: 3D + console + table */}
         <div style={{ flex: 1, overflowY: "auto", position: "relative" }} className="blueprint-grid">
           <GuideBar guide={guide} />
-          <div style={{ maxWidth: 900, margin: "0 auto", padding: "20px 28px 60px" }}>
+          <div style={{ maxWidth: 900, margin: "0 auto", padding: isMobile ? "14px 14px 56px" : "20px 28px 60px" }}>
             {/* 3D viewport */}
-            <div style={{ height: 440, borderRadius: 16, overflow: "hidden", border: `1px solid ${C.line}`, marginBottom: 24, boxShadow: "0 12px 40px rgba(15,23,42,0.10)", background: "#eef2f6" }}>
+            <div style={{ height: isMobile ? 300 : 440, borderRadius: 16, overflow: "hidden", border: `1px solid ${C.line}`, marginBottom: isMobile ? 16 : 24, boxShadow: "0 12px 40px rgba(15,23,42,0.10)", background: "#eef2f6" }}>
               <Canvas shadows dpr={[1, 2]} gl={{ preserveDrawingBuffer: true }} camera={{ position: [0, 1.0, 3.0], fov: 45 }}>
                 <LabScene
                   tubes={tubes}
