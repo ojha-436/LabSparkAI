@@ -224,7 +224,7 @@ function App() {
   return (
     <>
       {view === "landing" && (
-        <LandingPage onEnterSandbox={() => setView("login")} />
+        <LandingPage authed={!!uid} onEnterSandbox={() => setView(uid ? homeFor(student.role) : "login")} />
       )}
       
       {view === "login" && (

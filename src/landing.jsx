@@ -11,7 +11,7 @@ const CREATOR = {
   tagline: "Building AI-first, interactive science learning for every student.",
 };
 
-function LandingPage({ onEnterSandbox }) {
+function LandingPage({ onEnterSandbox, authed }) {
   const ref = useReveal();
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = laUS("curriculum");
@@ -73,7 +73,7 @@ function LandingPage({ onEnterSandbox }) {
           )}
 
           <div>
-            <Btn v="primary" sm={isMobile} icon="arrow" onClick={onEnterSandbox}>{isMobile ? "Start" : "Launch Workbench"}</Btn>
+            <Btn v="primary" sm={isMobile} icon="arrow" onClick={onEnterSandbox}>{authed ? "Dashboard" : (isMobile ? "Start" : "Launch Workbench")}</Btn>
           </div>
         </div>
       </nav>
@@ -104,7 +104,7 @@ function LandingPage({ onEnterSandbox }) {
           </p>
 
           <div className="reveal r4" style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", marginBottom: 50 }}>
-            <Btn v="primary" lg icon="flask" onClick={onEnterSandbox}>Enter Virtual Workbench</Btn>
+            <Btn v="primary" lg icon="flask" onClick={onEnterSandbox}>{authed ? "Go to Dashboard" : "Enter Virtual Workbench"}</Btn>
             <a href="#demo">
               <Btn v="light" lg icon="play">Experience Voice Demo</Btn>
             </a>
