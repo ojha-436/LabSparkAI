@@ -2,6 +2,14 @@
   "projects": {
     "default": "gen-lang-client-0686614374"
   },
-  "targets": {},
+  "targets": {
+    "gen-lang-client-0686614374": {
+      "hosting": {
+        "app": [
+          "labspark-app"
+        ]
+      }
+    }
+  },
   "etags": {}
 }

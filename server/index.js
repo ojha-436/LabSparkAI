@@ -18,7 +18,7 @@ const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJEC
 const RATE_PER_MIN = Number(process.env.RATE_PER_MIN || 20);
 const RATE_PER_DAY = Number(process.env.RATE_PER_DAY || 300);
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ||
-  "https://gen-lang-client-0686614374.web.app,https://gen-lang-client-0686614374.firebaseapp.com,http://localhost:5173,http://localhost:4173"
+  "https://gen-lang-client-0686614374.web.app,https://gen-lang-client-0686614374.firebaseapp.com,https://labspark-app.web.app,https://labspark-app.firebaseapp.com,http://localhost:5173,http://localhost:4173"
 ).split(",").map((s) => s.trim());
 
 if (!API_KEY) {
