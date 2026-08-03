@@ -1894,4 +1894,153 @@ body { -webkit-text-size-adjust: 100%; }
   body { padding-bottom: env(safe-area-inset-bottom); }
 }
 
+/* ================================================================
+   Immersive 3D lab mode + floating "Spark" assistant
+   ================================================================ */
+
+/* The canvas fills the whole screen; controls float above it. */
+.imm-canvas {
+  position: fixed;
+  inset: 0;
+  height: 100dvh;
+  width: 100vw;
+  z-index: 300;
+  background: #0b1220;
+  border-radius: 0 !important;
+  border: none !important;
+  margin: 0 !important;
+}
+
+/* Top exit chip — respects the status-bar / notch safe area. */
+.imm-exit {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 12px);
+  left: calc(env(safe-area-inset-left) + 12px);
+  z-index: 340;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 99px;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.imm-exit:active { transform: scale(0.96); }
+
+/* Bottom gradient scrim so any on-canvas labels stay legible. */
+.imm-veil {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  height: 140px;
+  z-index: 310;
+  pointer-events: none;
+  background: linear-gradient(0deg, rgba(11, 18, 32, 0.5), transparent);
+}
+
+/* Floating Spark button (FAB). */
+.imm-fab {
+  position: fixed;
+  right: calc(env(safe-area-inset-right) + 16px);
+  bottom: calc(env(safe-area-inset-bottom) + 18px);
+  z-index: 340;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0d9488, #4f46e5);
+  box-shadow: 0 10px 30px rgba(13, 148, 136, 0.4), 0 2px 8px rgba(2, 6, 23, 0.4);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.imm-fab:active { transform: scale(0.92); }
+.imm-fab.speaking::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid rgba(52, 211, 153, 0.7);
+  animation: immRing 1.4s ease-out infinite;
+}
+@keyframes immRing {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+/* Unread dot when Spark spoke while the popup was closed. */
+.imm-fab .imm-dot {
+  position: absolute;
+  top: 2px; right: 2px;
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  background: #f59e0b;
+  border: 2px solid #0b1220;
+}
+
+/* Transient caption bubble while Spark talks (popup closed). */
+.imm-caption {
+  position: fixed;
+  right: calc(env(safe-area-inset-right) + 16px);
+  bottom: calc(env(safe-area-inset-bottom) + 88px);
+  left: calc(env(safe-area-inset-left) + 16px);
+  max-width: 460px;
+  margin-left: auto;
+  z-index: 335;
+  background: rgba(255, 255, 255, 0.96);
+  color: #0f172a;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 16px 16px 4px 16px;
+  padding: 12px 15px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  box-shadow: 0 16px 40px rgba(2, 6, 23, 0.35);
+  animation: immPopIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Dim scrim behind the open popup. */
+.imm-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 336;
+  background: rgba(2, 6, 23, 0.35);
+  backdrop-filter: blur(1.5px);
+  animation: immFade 0.2s ease both;
+}
+
+/* The Spark popup (glass card anchored above the FAB). */
+.imm-popup {
+  position: fixed;
+  right: calc(env(safe-area-inset-right) + 16px);
+  bottom: calc(env(safe-area-inset-bottom) + 88px);
+  left: calc(env(safe-area-inset-left) + 16px);
+  max-width: 440px;
+  margin-left: auto;
+  z-index: 338;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgba(2, 6, 23, 0.4);
+  overflow: hidden;
+  transform-origin: bottom right;
+  animation: immPopIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes immPopIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes immFade { from { opacity: 0; } to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .imm-fab.speaking::after, .imm-popup, .imm-caption, .imm-scrim { animation: none !important; }
+}
+
 

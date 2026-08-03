@@ -11,7 +11,8 @@ import { Ic, Btn, SparkAvatar, VoiceWaveform, useIsMobile } from "./ui.jsx";
 import { GlassMaterial, LabRoom, BenchInstruments, SceneEnv } from "./lab3dscene.jsx";
 import { Item3D, BarMagnet, ConductivityTester, LightRig, ThermoRig, Magnifier, GlowRig, BurnRig, ReflectRig, SlideRig, StatesRig, OpticsRig } from "./labitems3d.jsx";
 import { AskSpark } from "./askspark.jsx";
-import { gradeLab, sparkExplain } from "./api.js";
+import { FullscreenBtn, ImmersiveControls } from "./immersive.jsx";
+import { gradeLab, sparkExplain, askSpark } from "./api.js";
 import { speak, cancelSpeech, loadClipManifest } from "./speech.js";
 
 const { useState: gUS, useEffect: gUE, useRef: gUR, useCallback: gUC } = React;
@@ -298,9 +299,19 @@ export function GenLab3D({ spec, onExit, onComplete, addXp }) {
   );
   const [showQuiz, setShowQuiz] = gUS(false);
   const [picked, setPicked] = gUS(null);
+  const [fs, setFs] = gUS(false); // immersive full-screen lab
   const answeredRef = gUR(false);
 
   const labelFor = (key) => { const c = (spec.categories || []).find((c) => c.key === key); return c ? c.label : key; };
+
+  const enterFs = () => { setFs(true); try { const el = document.documentElement; if (el.requestFullscreen) el.requestFullscreen().catch(() => {}); } catch { /* ignore */ } };
+  const exitFs = () => { setFs(false); try { if (document.fullscreenElement) document.exitFullscreen(); } catch { /* ignore */ } };
+  const askImmersive = async (question) => {
+    try {
+      const a = await askSpark({ question, experiment: `${spec.cls} ${spec.subject} — ${spec.title}. ${spec.aim}`, labState: { examined: `${testedCount}/${items.length}`, activeItem: active } });
+      if (a) say(a);
+    } catch { say("I couldn't reach the tutor just now — try again in a moment."); }
+  };
 
   gUE(() => { loadClipManifest(); return () => cancelSpeech(); }, []);
 
@@ -422,10 +433,11 @@ export function GenLab3D({ spec, onExit, onComplete, addXp }) {
             </div>
 
             {/* 3D viewport */}
-            <div style={{ height: isMobile ? 300 : 440, borderRadius: 16, overflow: "hidden", border: `1px solid ${C.line}`, marginBottom: isMobile ? 16 : 22, boxShadow: "0 12px 40px rgba(15,23,42,0.10)", background: "#eef2f6" }}>
+            <div className={fs ? "imm-canvas" : ""} style={fs ? undefined : { position: "relative", height: isMobile ? 300 : 440, borderRadius: 16, overflow: "hidden", border: `1px solid ${C.line}`, marginBottom: isMobile ? 16 : 22, boxShadow: "0 12px 40px rgba(15,23,42,0.10)", background: "#eef2f6" }}>
               <Canvas shadows dpr={[1, 2]} camera={{ position: [0, 1.0, 3.0], fov: 45 }}>
                 <GenScene spec={spec} items={items} active={active} tested={tested} onExamine={examine} />
               </Canvas>
+              {!fs && <FullscreenBtn onClick={enterFs} />}
             </div>
 
             {/* bonus quiz */}
@@ -519,9 +531,20 @@ export function GenLab3D({ spec, onExit, onComplete, addXp }) {
         </aside>
       </div>
 
+      {/* Immersive full-screen controls (exit + floating Spark) */}
+      {fs && (
+        <ImmersiveControls
+          title={`${spec.cls.toUpperCase()} · ${spec.subject.toUpperCase()}`}
+          accent={spec.accent} onExit={exitFs}
+          mood={mood} speaking={speaking} msg={msg}
+          voiceOn={voiceOn} onToggleVoice={() => { const nx = !voiceOn; setVoiceOn(nx); if (!nx) { cancelSpeech(); setSpeaking(false); } }}
+          onAsk={askImmersive}
+        />
+      )}
+
       {/* ── Socratic prediction overlay — shown before a sample is revealed ── */}
       {predictFor && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(15,23,42,0.55)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 360, background: "rgba(15,23,42,0.55)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
           <div className="card-glass" style={{ background: C.paper, borderRadius: 18, padding: "26px 28px", maxWidth: 460, width: "100%", boxShadow: "0 24px 60px rgba(15,23,42,0.3)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
               <Ic n="spark" s={16} c={spec.accent} sw={2} />
@@ -548,7 +571,7 @@ export function GenLab3D({ spec, onExit, onComplete, addXp }) {
         </div>
       )}
 
-      <AskSpark experiment={`${spec.cls} ${spec.subject} — ${spec.title}. ${spec.aim}`} getLabState={() => ({ examined: `${testedCount}/${items.length}`, activeItem: active })} />
+      {!fs && <AskSpark experiment={`${spec.cls} ${spec.subject} — ${spec.title}. ${spec.aim}`} getLabState={() => ({ examined: `${testedCount}/${items.length}`, activeItem: active })} />}
     </div>
   );
 }

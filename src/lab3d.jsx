@@ -14,7 +14,8 @@ import { SUBSTANCES } from "./data.js";
 import { Ic, Btn, SparkAvatar, VoiceWaveform, useIsMobile } from "./ui.jsx";
 import { ResultsTable, IntroOverlay } from "./labpanel.jsx";
 import { GuideBar, dipResult } from "./lab.jsx";
-import { gradeLab } from "./api.js";
+import { gradeLab, askSpark } from "./api.js";
+import { FullscreenBtn, ImmersiveControls } from "./immersive.jsx";
 import { LiveVoice } from "./voicelive.js";
 import { AskSpark } from "./askspark.jsx";
 import { speak, cancelSpeech, loadClipManifest } from "./speech.js";
@@ -674,6 +675,25 @@ function Lab3D({ onExit, onComplete, addXp }) {
   const [voiceMsg, setVoiceMsg] = tUS("Welcome to the 3D lab, scientist! I'm Spark. Drag to look around, then click any test tube on the rack to begin.");
   const [mood, setMood] = tUS("happy");
   const [graded, setGraded] = tUS(false);
+  const [fs, setFs] = tUS(false); // immersive full-screen lab
+  const enterFs = () => { setFs(true); try { const el = document.documentElement; if (el.requestFullscreen) el.requestFullscreen().catch(() => {}); } catch { /* ignore */ } };
+  const exitFs = () => { setFs(false); try { if (document.fullscreenElement) document.exitFullscreen(); } catch { /* ignore */ } };
+  const toggleNarration = () => {
+    const next = !voiceActive;
+    setVoiceActive(next);
+    if (!next) { cancelSpeech(); setVoiceMsg("Narration muted. Use Ask Spark anytime for help."); setVoiceSpeaking(false); setMood("happy"); }
+    else triggerVoiceResponse("Narration on. I'll guide you step by step.", 2500);
+  };
+  const askImmersive = async (question) => {
+    try {
+      const a = await askSpark({
+        question,
+        experiment: "Class 7 Chemistry — Acids, Bases & Indicators (litmus). The student is at a 3D lab bench testing everyday liquids with blue and red litmus paper.",
+        labState: { activeSubstance: activeSubObj ? `${activeSubObj.name} (${activeSubObj.formula})` : null, tubesTested: `${tested.length}/${tubes.length}`, currentStep: guide.text },
+      });
+      if (a) triggerVoiceResponse(a, 6500);
+    } catch { triggerVoiceResponse("I couldn't reach the tutor just now — try again in a moment.", 4000); }
+  };
 
   // ── Live two-way voice (Gemini Live API) ──
   const [liveStatus, setLiveStatus] = tUS("off"); // off|connecting|listening|speaking|error
@@ -869,7 +889,7 @@ function Lab3D({ onExit, onComplete, addXp }) {
           <GuideBar guide={guide} />
           <div style={{ maxWidth: 900, margin: "0 auto", padding: isMobile ? "14px 14px 56px" : "20px 28px 60px" }}>
             {/* 3D viewport */}
-            <div style={{ height: isMobile ? 300 : 440, borderRadius: 16, overflow: "hidden", border: `1px solid ${C.line}`, marginBottom: isMobile ? 16 : 24, boxShadow: "0 12px 40px rgba(15,23,42,0.10)", background: "#eef2f6" }}>
+            <div className={fs ? "imm-canvas" : ""} style={fs ? undefined : { position: "relative", height: isMobile ? 300 : 440, borderRadius: 16, overflow: "hidden", border: `1px solid ${C.line}`, marginBottom: isMobile ? 16 : 24, boxShadow: "0 12px 40px rgba(15,23,42,0.10)", background: "#eef2f6" }}>
               <Canvas shadows dpr={[1, 2]} gl={{ preserveDrawingBuffer: true }} camera={{ position: [0, 1.0, 3.0], fov: 45 }}>
                 <LabScene
                   tubes={tubes}
@@ -879,6 +899,7 @@ function Lab3D({ onExit, onComplete, addXp }) {
                   onSelect={selectTube}
                 />
               </Canvas>
+              {!fs && <FullscreenBtn onClick={enterFs} />}
             </div>
 
             {/* selected substance console */}
@@ -1000,7 +1021,7 @@ function Lab3D({ onExit, onComplete, addXp }) {
         </aside>
       </div>
 
-      {phase !== "intro" && (
+      {phase !== "intro" && !fs && (
         <AskSpark
           experiment="Class 7 Chemistry — Acids, Bases & Indicators (litmus). The student is at a 3D lab bench testing everyday liquids with blue and red litmus paper."
           getLabState={() => ({
@@ -1008,6 +1029,16 @@ function Lab3D({ onExit, onComplete, addXp }) {
             tubesTested: `${tested.length}/${tubes.length}`,
             currentStep: guide.text,
           })}
+        />
+      )}
+
+      {/* Immersive full-screen controls (exit + floating Spark) */}
+      {fs && (
+        <ImmersiveControls
+          title="CLASS 7 · CHEMISTRY" accent={C.emBright} onExit={exitFs}
+          mood={mood} speaking={voiceSpeaking} msg={voiceMsg}
+          voiceOn={voiceActive} onToggleVoice={toggleNarration}
+          onAsk={askImmersive}
         />
       )}
 
