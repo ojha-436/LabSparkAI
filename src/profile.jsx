@@ -62,25 +62,15 @@ const inputStyle = { width: "100%", padding: "11px 14px", borderRadius: 10, bord
 
 export function PageShell({ title, subtitle, icon, onBack, children, accent = C.em, backLabel = "Dashboard" }) {
   const ref = useReveal();
-  const isMobile = useIsMobile();
   return (
-    <div ref={ref} className="grid-blueprint" style={{ minHeight: "100vh" }}>
-      <nav style={{ position: "sticky", top: 0, zIndex: 40, background: "rgba(255,255,255,0.88)", backdropFilter: "blur(12px)", borderBottom: `1px solid ${C.line}` }}>
-        <div style={{ maxWidth: 1000, margin: "0 auto", padding: isMobile ? "10px 14px" : "14px 24px", display: "flex", alignItems: "center", gap: isMobile ? 10 : 14 }}>
-          <button onClick={onBack} className="press btn btn-light" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <Ic n="back" s={14} c={C.ink50} /> {backLabel}
-          </button>
-          <div style={{ width: 1, height: 20, background: C.line }} />
-          <div style={{ width: 34, height: 34, borderRadius: 9, background: accent + "18", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Ic n={icon} s={18} c={accent} sw={2} />
-          </div>
-          <div>
-            <h3 style={{ fontSize: 17, fontWeight: 800, color: C.ink, letterSpacing: "-0.02em" }}>{title}</h3>
-            <p style={{ fontSize: 11.5, color: C.ink50 }}>{subtitle}</p>
-          </div>
-        </div>
-      </nav>
-      <div style={{ maxWidth: 1000, margin: "0 auto", padding: isMobile ? "20px 14px 72px" : "32px 24px 80px" }}>{children}</div>
+    <div ref={ref} style={{ minHeight: "100vh", background: C.cream }}>
+      <div style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, borderBottom: `1px solid ${C.line}`, position: "sticky", top: 0, zIndex: 40, background: "rgba(255,255,255,0.92)", backdropFilter: "blur(12px)" }}>
+        <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+          <Ic n="back" s={20} c={C.ink50} sw={2} />
+        </button>
+        <div style={{ fontSize: 16, fontWeight: 700, color: C.ink }}>{title}</div>
+      </div>
+      <div style={{ padding: "16px 16px 80px" }}>{children}</div>
     </div>
   );
 }

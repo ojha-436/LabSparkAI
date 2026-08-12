@@ -181,6 +181,17 @@ h1, h2, h3, h4, h5, h6, .font-display {
   to { opacity: 1; transform: scale(1); }
 }
 
+/* AR lab viewport — sweeping tracking line + status dot */
+@keyframes arScan {
+  0% { top: 0; opacity: 0.6; }
+  100% { top: 100%; opacity: 0; }
+}
+
+@keyframes arPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
 .hover-lift {
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }

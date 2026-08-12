@@ -1,11 +1,11 @@
 /* ── App shell: view routing + student state ── */
 import React from "react";
 import { C } from "./tokens.js";
-import { SparkAvatar } from "./ui.jsx";
+import { SparkAvatar, Ic } from "./ui.jsx";
 import { LandingPage } from "./landing.jsx";
 import { LoginPage } from "./login.jsx";
 import { Dashboard } from "./dashboard.jsx";
-import { Lab3D } from "./lab3d.jsx";
+import { ARLab } from "./arlab.jsx";
 import { CircuitLab } from "./circuitlab.jsx";
 import { Report } from "./report.jsx";
 import { ProfilePage, ProgressPage, AchievementsPage } from "./profile.jsx";
@@ -19,6 +19,48 @@ import { GEN_LABS } from "./genlabdata.js";
 import { CATALOG } from "./data.js";
 import firebase, { db } from "./firebaseInit.js";
 const { useState: aUS } = React;
+
+const TAB_FOR = { dashboard: "home", practical: "home", join: "home", family: "home", progress: "progress", achievements: "progress", profile: "profile" };
+const HAS_NAV = new Set(Object.keys(TAB_FOR));
+
+function BottomNav({ active, onTab }) {
+  const tabs = [
+    { id: "home", label: "Home", ic: "home" },
+    { id: "labs", label: "Labs", ic: "flask" },
+    { id: "progress", label: "Progress", ic: "chart" },
+    { id: "profile", label: "Profile", ic: "shield" },
+  ];
+  return (
+    <nav style={{
+      position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 100,
+      display: "flex", alignItems: "center", justifyContent: "space-around",
+      height: 64, background: "rgba(255,255,255,0.95)",
+      backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
+      borderTop: `1px solid ${C.line}`,
+    }}>
+      {tabs.map((t) => {
+        const on = t.id === active;
+        return (
+          <button key={t.id} onClick={() => onTab(t.id)} style={{
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+            background: "none", border: "none", cursor: "pointer", padding: "8px 16px",
+            color: on ? C.emBright : C.ink30, fontSize: 10, fontWeight: on ? 700 : 600,
+            fontFamily: "inherit",
+          }}>
+            {t.id === "spark" ? (
+              <svg width={22} height={22} viewBox="0 0 24 24" fill={on ? C.emBright : "none"} stroke={on ? C.emBright : C.ink30} strokeWidth={1.7}>
+                <path d="M12 3c.13 2.83 2.17 4.87 5 5-2.83.13-4.87 2.17-5 5-.13-2.83-2.17-4.87-5-5 2.83-.13 4.87-2.17 5-5z" />
+              </svg>
+            ) : (
+              <Ic n={t.ic} s={22} c={on ? C.emBright : C.ink30} sw={on ? 2.2 : 1.7} />
+            )}
+            <span>{t.label}</span>
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
 
 const DEFAULT_STUDENT = {
   name: "Scientist", level: 1, xp: 0, done: 0, badges: 0, streak: 1, email: "student@labspark.ai",
@@ -287,7 +329,7 @@ function App() {
       )}
       
       {view === "lab" && (
-        <Lab3D onExit={() => setView("dashboard")} onComplete={complete} addXp={addXp} />
+        <ARLab onExit={() => setView("dashboard")} onComplete={complete} addXp={addXp} />
       )}
 
       {view === "circuit-lab" && (
@@ -311,6 +353,18 @@ function App() {
         />
       )}
       
+      {HAS_NAV.has(view) && (
+        <BottomNav
+          active={TAB_FOR[view] || "home"}
+          onTab={(tab) => {
+            if (tab === "home") setView("dashboard");
+            else if (tab === "labs") setView("dashboard");
+            else if (tab === "progress") setView("progress");
+            else if (tab === "profile") setView("profile");
+          }}
+        />
+      )}
+
       {toast && <Toast text={toast} />}
     </>
   );

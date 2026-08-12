@@ -19,76 +19,24 @@ function Dashboard({ student, onOpen, onBackToLanding, onEditProfile, onOpenProg
   const completedIds = new Set((student.completions || []).map((c) => c.id));
 
   return (
-    <div ref={ref} style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      {/* Navbar */}
-      <DashNav student={student} onBack={onBackToLanding} onEditProfile={onEditProfile} />
+    <div ref={ref} style={{ minHeight: "100vh", background: C.cream }}>
+      {/* Mobile App Header */}
+      <div style={{ padding: "16px 20px 12px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div>
+          <span className="mono" style={{ fontSize: 10, color: C.emBright, fontWeight: 700, letterSpacing: "0.1em" }}>STUDENT BENCH</span>
+          <h2 style={{ fontSize: 22, fontWeight: 800, color: C.ink, letterSpacing: "-0.02em", marginTop: 2 }}>
+            Welcome, {student.name.split(" ")[0]}
+          </h2>
+        </div>
+        <button onClick={onEditProfile} className="press" style={{ width: 40, height: 40, borderRadius: "50%", background: "linear-gradient(135deg,#6366f1,#8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", border: `2px solid ${C.line}`, cursor: "pointer" }}>
+          <span style={{ color: "#fff", fontWeight: 800, fontSize: 15 }}>{student.name ? student.name[0].toUpperCase() : "S"}</span>
+        </button>
+      </div>
 
-      <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", flex: 1, maxWidth: 1240, width: "100%", margin: "0 auto", padding: isMobile ? "0 14px" : "0 24px" }}>
-
-        {/* Sidebar Nav (desktop) / horizontal scroll strip (mobile) */}
-        <aside style={isMobile
-          ? { display: "flex", flexDirection: "row", gap: 8, overflowX: "auto", padding: "12px 0", borderBottom: `1px solid ${C.line}`, flexShrink: 0 }
-          : { width: 220, borderRight: `1px solid ${C.line}`, padding: "30px 16px 30px 0", display: "flex", flexDirection: "column", gap: 6 }}>
-          {[
-            { id: "bench", l: "Virtual Workbench", ic: "home", active: true, go: () => {} },
-            { id: "analytics", l: "Class Progress", ic: "chart", go: onOpenProgress },
-            { id: "practical", l: "My Practical File", ic: "note", go: onOpenPractical },
-            { id: "cert", l: "Achievements", ic: "trophy", go: onOpenAchievements },
-            { id: "join", l: "Join a Class", ic: "grid", go: onOpenJoin },
-            { id: "family", l: "Invite Parent", ic: "shield", go: onOpenFamily },
-            { id: "profile", l: "My Profile", ic: "home", go: onEditProfile },
-          ].map((m) => (
-            <button
-              key={m.id}
-              onClick={m.go}
-              className="press"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                fontSize: 13.5,
-                fontWeight: 600,
-                color: m.active ? C.emDeep : C.ink50,
-                padding: "10px 14px",
-                borderRadius: 8,
-                background: m.active ? C.emPale : "transparent",
-                border: "none",
-                cursor: "pointer",
-                textAlign: "left",
-                whiteSpace: "nowrap",
-                flexShrink: 0,
-                width: isMobile ? "auto" : "100%"
-              }}
-            >
-              <Ic n={m.ic} s={16} c={m.active ? C.em : C.ink30} sw={2} />
-              {m.l}
-            </button>
-          ))}
-          {!isMobile && (
-            <div style={{ marginTop: "auto", borderTop: `1px solid ${C.line}`, paddingTop: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, background: C.paperWarm, padding: 12, borderRadius: 8 }}>
-                <SparkAvatar size={30} />
-                <div>
-                  <div style={{ fontSize: 11.5, fontWeight: 700, color: C.ink70 }}>Spark Active</div>
-                  <div style={{ fontSize: 9.5, color: C.ink50 }} className="mono">v1.5-flash-grounded</div>
-                </div>
-              </div>
-            </div>
-          )}
-        </aside>
-
-        {/* Main Content Area */}
-        <main style={{ flex: 1, minWidth: 0, padding: isMobile ? "20px 0 72px 0" : "30px 0 80px 32px" }}>
-          
-          {/* Greeting Row */}
-          <div className="reveal r1" style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 30, flexWrap: "wrap" }}>
-            <div style={{ flex: 1, minWidth: 260 }}>
-              <span className="mono" style={{ fontSize: 11, color: C.emBright, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>STUDENT BENCH</span>
-              <h2 style={{ fontSize: 28, fontWeight: 800, color: C.ink, letterSpacing: "-0.03em", marginTop: 4 }}>
-                Welcome back, {student.name.split(" ")[0]}
-              </h2>
-              <p style={{ fontSize: 14, color: C.ink50, marginTop: 4 }}>Select a syllabus laboratory experiment module to execute in sandbox.</p>
-            </div>
+      {/* Scrollable Content */}
+      <div style={{ padding: "0 16px", paddingBottom: 80 }}>
+          {/* Level Card */}
+          <div className="reveal r1" style={{ marginBottom: 16 }}>
             <LevelCard student={student} pct={lvlPct} />
           </div>
 
@@ -96,10 +44,10 @@ function Dashboard({ student, onOpen, onBackToLanding, onEditProfile, onOpenProg
           <ClassAssignments memberships={student.classes || []} student={student} onOpen={onOpen} />
 
           {/* Featured Card */}
-          <FeaturedCard exp={featured} onOpen={onOpen} isMobile={isMobile} className="reveal r2" />
+          <FeaturedCard exp={featured} onOpen={onOpen} isMobile={true} className="reveal r2" />
 
           {/* Quick Metrics */}
-          <div className="reveal r3" style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: isMobile ? 10 : 16, margin: "28px 0 40px" }}>
+          <div className="reveal r3" style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 10, margin: "16px 0 20px" }}>
             {[
               { ic: "flask", n: student.done, l: "Experiments Completed", c: C.emBright, go: onOpenProgress },
               { ic: "bolt", n: student.xp, l: "Total XP Accrued", c: C.gold },
@@ -133,7 +81,7 @@ function Dashboard({ student, onOpen, onBackToLanding, onEditProfile, onOpenProg
 
           {!openClass ? (
             /* Step 1 — class cards (Class 6–10) */
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px,1fr))", gap: 18 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               {CLASS_ORDER.map((cls, i) => {
                 const labs = CATALOG.filter((e) => e.cls === cls);
                 const doneN = labs.filter((e) => completedIds.has(e.id)).length;
@@ -173,7 +121,7 @@ function Dashboard({ student, onOpen, onBackToLanding, onEditProfile, onOpenProg
                       <h4 style={{ fontSize: 16, fontWeight: 700, color: C.ink }}>{subject}</h4>
                       <span className="mono" style={{ fontSize: 11, color: C.ink30 }}>{labs.length} lab{labs.length !== 1 ? "s" : ""}</span>
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px,1fr))", gap: 18 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                       {labs.map((e) => <ExpCard key={e.id} e={e} onOpen={onOpen} className="" />)}
                     </div>
                   </div>
@@ -181,7 +129,6 @@ function Dashboard({ student, onOpen, onBackToLanding, onEditProfile, onOpenProg
               })}
             </div>
           )}
-        </main>
       </div>
     </div>
   );
