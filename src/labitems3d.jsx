@@ -374,46 +374,38 @@ function BulbModel({ color = "#fde68a", active }) {
   );
 }
 /* Candle with proper three-zone flame (dark inner / yellow luminous middle
-   / faint blue outer envelope) — matches the NCERT flame-zones diagram. */
+   / faint blue outer envelope) — matches the NCERT flame-zones diagram.
+   Only the outer flame group flickers; inner cones inherit the scale. */
 function CandleModel({ color = "#fef3c7", active }) {
   const flame = iUR();
-  const inner = iUR();
-  const outer = iUR();
   useFrame((s) => {
     if (!flame.current) return;
     const t = s.clock.elapsedTime;
     flame.current.scale.y = 1 + Math.sin(t * 12) * 0.14;
     flame.current.scale.x = flame.current.scale.z = 1 + Math.sin(t * 15 + 1.2) * 0.06;
     flame.current.rotation.z = Math.sin(t * 7) * 0.07;
-    if (inner.current) inner.current.scale.y = 1 + Math.sin(t * 20) * 0.08;
-    if (outer.current) outer.current.material.opacity = 0.42 + Math.sin(t * 9 + 0.4) * 0.08;
   });
   return (
     <group>
       {/* pewter candle holder */}
       <mesh position={[0, 0.012, 0]} castShadow>
         <cylinderGeometry args={[0.07, 0.08, 0.024, 24]} />
-        <meshPhysicalMaterial color="#9ca3af" metalness={0.7} roughness={0.32} clearcoat={0.6} />
+        <meshStandardMaterial color="#9ca3af" metalness={0.5} roughness={0.4} />
       </mesh>
-      {/* wax cylinder with subtle side melt drips */}
+      {/* wax cylinder */}
       <mesh castShadow position={[0, 0.12, 0]}>
         <cylinderGeometry args={[0.035, 0.04, 0.2, 24]} />
-        <meshPhysicalMaterial color={color} roughness={0.5} sheen={0.5} sheenColor="#fef3c7" clearcoat={0.15} />
-      </mesh>
-      {/* darker melted top ring */}
-      <mesh position={[0, 0.221, 0]}>
-        <torusGeometry args={[0.033, 0.006, 8, 20]} />
-        <meshStandardMaterial color="#facc15" roughness={0.55} />
+        <meshStandardMaterial color={color} roughness={0.6} />
       </mesh>
       {/* charred wick */}
       <mesh position={[0, 0.235, 0]}>
         <cylinderGeometry args={[0.0045, 0.0035, 0.028, 6]} />
         <meshStandardMaterial color="#0f172a" roughness={0.8} />
       </mesh>
-      {/* Three-zone flame */}
+      {/* Three-zone flame — nested cones from largest (outer/blue) to
+          smallest (inner/dark), all sharing one flicker group. */}
       <group ref={flame} position={[0, 0.28, 0]}>
-        {/* Outer envelope — pale blue, hottest, translucent */}
-        <mesh ref={outer}>
+        <mesh>
           <coneGeometry args={[0.026, 0.11, 20]} />
           <meshStandardMaterial
             color="#60a5fa"
@@ -421,10 +413,8 @@ function CandleModel({ color = "#fef3c7", active }) {
             emissiveIntensity={active ? 1.6 : 1.1}
             transparent
             opacity={0.5}
-            depthWrite={false}
           />
         </mesh>
-        {/* Middle yellow luminous zone — partial combustion carbon glow */}
         <mesh>
           <coneGeometry args={[0.018, 0.075, 18]} />
           <meshStandardMaterial
@@ -435,8 +425,7 @@ function CandleModel({ color = "#fef3c7", active }) {
             opacity={0.92}
           />
         </mesh>
-        {/* Inner dark zone — unburnt wax vapour, coolest */}
-        <mesh ref={inner} position={[0, -0.014, 0]}>
+        <mesh position={[0, -0.014, 0]}>
           <coneGeometry args={[0.008, 0.03, 12]} />
           <meshStandardMaterial
             color="#1e293b"
@@ -447,12 +436,7 @@ function CandleModel({ color = "#fef3c7", active }) {
           />
         </mesh>
       </group>
-      {active && (
-        <>
-          <pointLight color="#fdba74" intensity={0.55} distance={1.4} position={[0, 0.31, 0]} />
-          <pointLight color="#93c5fd" intensity={0.15} distance={0.6} position={[0, 0.34, 0]} />
-        </>
-      )}
+      {active && <pointLight color="#fdba74" intensity={0.55} distance={1.4} position={[0, 0.31, 0]} />}
     </group>
   );
 }

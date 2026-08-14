@@ -273,6 +273,10 @@ function GenScene({ spec, items, active, tested, onExamine }) {
       {spec.mode === "light" && activeIdx >= 0 && <LightRig x={activeX} category={activeItem.category} />}
       {spec.mode === "thermo" && activeIdx >= 0 && <ThermoRig x={activeX} temp={activeItem.temp} />}
       {spec.mode === "inspect" && activeIdx >= 0 && <Magnifier x={activeX} />}
+      {/* Motion mode (pendulum): the item itself already animates
+          (PendulumModel), so no extra rig — this stub prevents fall-through
+          to the default Magnifier which would confuse the visual. */}
+      {spec.mode === "motion" && activeIdx >= 0 && <Magnifier x={activeX} />}
       {spec.mode === "glow" && activeIdx >= 0 && <GlowRig x={activeX} lit={!!(activeItem && activeItem.category === "luminous")} />}
     </>
   );
