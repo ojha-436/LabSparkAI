@@ -10,34 +10,20 @@ import { C } from "./tokens.js";
 
 const { useRef: sUR, useMemo: sUM } = React;
 
-/* Photo-real lab glass — meshPhysicalMaterial tuned so beakers, test tubes
-   and flasks show proper Fresnel highlights, subtle green-blue attenuation
-   (like real borosilicate laboratory glass), and gentle rim caustics. */
 export function GlassMaterial(props) {
   return (
     <meshPhysicalMaterial
-      transparent opacity={1} transmission={1} roughness={0.035} metalness={0}
-      thickness={0.42} ior={1.52} clearcoat={1} clearcoatRoughness={0.04}
-      reflectivity={0.55} envMapIntensity={1.65} color="#ffffff"
-      attenuationColor="#e6f5ff" attenuationDistance={1.8}
-      specularIntensity={1} specularColor="#ffffff"
-      {...props}
+      transparent opacity={1} transmission={1} roughness={0.05} metalness={0}
+      thickness={0.35} ior={1.5} clearcoat={1} clearcoatRoughness={0.06}
+      reflectivity={0.5} envMapIntensity={1.3} color="#ffffff"
+      attenuationColor="#eaf6ff" attenuationDistance={2} {...props}
     />
   );
 }
 
-/* Vivid lab-liquid material with realistic meniscus + slight sheen. */
+/* Vivid lab-liquid material. */
 export function liquidProps(color) {
-  return {
-    color,
-    roughness: 0.09,
-    metalness: 0.0,
-    transparent: true,
-    opacity: 0.94,
-    emissive: color,
-    emissiveIntensity: 0.24,
-    envMapIntensity: 0.6,
-  };
+  return { color, roughness: 0.12, metalness: 0.0, transparent: true, opacity: 0.92, emissive: color, emissiveIntensity: 0.22 };
 }
 
 /* ── Wall art (procedural canvas-texture posters) ── */
@@ -223,20 +209,7 @@ export function LabRoom() {
       <WallArt />
       <mesh position={[1.9, 1.6, -2.3]}><boxGeometry args={[2.4, 0.05, 0.3]} /><meshStandardMaterial color="#94703a" roughness={0.8} /></mesh>
       {[1.2, 1.7, 2.2, 2.7].map((x, i) => (<mesh key={i} position={[x, 1.78, -2.3]}><cylinderGeometry args={[0.07, 0.06, 0.22, 20, 1, true]} /><meshStandardMaterial color={["#fca5a5", "#a7f3d0", "#bfdbfe", "#fde68a"][i]} transparent opacity={0.6} roughness={0.2} /></mesh>))}
-      {/* Workbench top — polished dark granite/epoxy resin.
-          Higher clearcoat + lower roughness → convincing wet-lab sheen. */}
-      <mesh position={[0, -0.08, 0]} receiveShadow castShadow>
-        <boxGeometry args={[6, 0.16, 2.2]} />
-        <meshPhysicalMaterial
-          color="#1e1f24"
-          roughness={0.28}
-          metalness={0.35}
-          clearcoat={0.95}
-          clearcoatRoughness={0.18}
-          envMapIntensity={0.9}
-          reflectivity={0.6}
-        />
-      </mesh>
+      <mesh position={[0, -0.08, 0]} receiveShadow><boxGeometry args={[6, 0.16, 2.2]} /><meshPhysicalMaterial color="#26262b" roughness={0.35} metalness={0.2} clearcoat={0.8} clearcoatRoughness={0.25} /></mesh>
       <mesh position={[0, -0.08, 1.11]}><boxGeometry args={[6, 0.18, 0.04]} /><meshStandardMaterial color="#7c5a33" roughness={0.6} /></mesh>
       <mesh position={[0, -0.38, 0.15]}><boxGeometry args={[5.7, 0.46, 1.7]} /><meshStandardMaterial color="#3f4750" roughness={0.7} /></mesh>
     </group>
@@ -259,42 +232,23 @@ export function BenchInstruments() {
   );
 }
 
-/* Lighting + procedural environment + ground shadows + orbit camera.
-   Upgraded for photo-real feel:
-   - Environment map bumped 128 → 512: sharper reflections on glass and steel.
-   - Multi-source rig: hemisphere fill, warm key, cool fill, dramatic spot
-     overhead, cool rim from behind to separate glassware from the wall.
-   - ContactShadows: higher opacity (0.55), tighter blur, more samples.
-   - Additional Lightformers give windowed daylight caustics on glassware.
-   Same interface — every lab picks these up automatically. */
+/* Lighting + procedural environment + ground shadows + orbit camera. */
 export function SceneEnv() {
   return (
     <>
       <color attach="background" args={["#eaf1f7"]} />
       <fog attach="fog" args={["#eaf1f7", 7, 16]} />
-      <hemisphereLight args={["#ffffff", "#c7d2da", 0.65]} />
-      <ambientLight intensity={0.28} />
-      {/* Warm key light — simulates classroom windows */}
-      <directionalLight color="#fff2d9" position={[3, 5, 4]} intensity={1.35} castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.0004} shadow-normalBias={0.02} />
-      {/* Cool fill from the opposite side, softens shadow edges */}
-      <directionalLight color="#dbeafe" position={[-4, 3, -2]} intensity={0.42} />
-      {/* Overhead spot — dramatic pool of light on the workbench */}
-      <spotLight color="#fef3c7" position={[0, 5.5, 0.8]} angle={0.55} penumbra={0.55} intensity={0.95} distance={9} castShadow shadow-mapSize={[1024, 1024]} shadow-bias={-0.0005} target-position={[0, 0, 0]} />
-      {/* Rim light behind glassware for a subtle edge highlight */}
-      <pointLight color="#c7d2fe" position={[0, 2.2, -2]} intensity={0.55} distance={6} />
-      <pointLight position={[0, 2, 2]} intensity={0.32} />
-      <Environment resolution={512}>
-        {/* Big window-shaped area light */}
-        <Lightformer intensity={1.4} position={[0, 3, 2]} scale={[7, 3.5, 1]} rotation-x={Math.PI / 12} />
-        {/* Side fill from the imaginary side window */}
-        <Lightformer intensity={0.7} position={[-3, 1.5, 1]} scale={[3.5, 3.5, 1]} rotation-y={Math.PI / 6} />
-        {/* Warm slit from behind for caustics on the back of glassware */}
-        <Lightformer form="ring" color="#fef3c7" intensity={0.6} position={[0, 4, -3]} scale={[3, 3, 1]} />
-        {/* Cool bounce off the (imaginary) ceiling */}
-        <Lightformer intensity={0.45} position={[0, 5, 0]} scale={[10, 3, 1]} rotation-x={Math.PI / 2} />
+      <hemisphereLight args={["#ffffff", "#c7d2da", 0.7]} />
+      <ambientLight intensity={0.35} />
+      <directionalLight color="#fff4e6" position={[3, 5, 4]} intensity={1.25} castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.0005} />
+      <directionalLight color="#dbeafe" position={[-4, 3, -2]} intensity={0.45} />
+      <pointLight position={[0, 2, 2]} intensity={0.4} />
+      <Environment resolution={128}>
+        <Lightformer intensity={1.2} position={[0, 3, 2]} scale={[6, 3, 1]} />
+        <Lightformer intensity={0.6} position={[-3, 1, 1]} scale={[3, 3, 1]} />
       </Environment>
-      <ContactShadows position={[0, 0.005, 0]} opacity={0.55} scale={10} blur={2.0} far={2.4} resolution={1024} />
-      <OrbitControls enablePan={false} minDistance={1.6} maxDistance={5} minPolarAngle={0.2} maxPolarAngle={Math.PI / 2.15} target={[0, 0.25, 0]} enableDamping dampingFactor={0.08} />
+      <ContactShadows position={[0, 0.005, 0]} opacity={0.35} scale={8} blur={2.4} far={2} />
+      <OrbitControls enablePan={false} minDistance={1.6} maxDistance={5} minPolarAngle={0.2} maxPolarAngle={Math.PI / 2.15} target={[0, 0.25, 0]} />
     </>
   );
 }
