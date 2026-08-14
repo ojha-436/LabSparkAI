@@ -49,6 +49,25 @@ function speakTTS(text, onStart, onEnd) {
 
 export function speak(text, { clipKey, onStart, onEnd } = {}) {
   cancelSpeech();
+
+  // In embed mode (inside the Flutter WebView) hand off to the native
+  // Android TTS engine via the JS bridge — it's higher quality than the
+  // WebView's built-in SpeechSynthesis, plays through media stream, and
+  // also captures the text into the Ask Spark chat history.
+  if (typeof window !== "undefined" && window.LabSparkBridge) {
+    try {
+      onStart && onStart();
+      window.LabSparkBridge.emit({ type: "narrate", text });
+      // Rough duration estimate: 90ms per word. Flutter is authoritative
+      // on completion, but we still fire onEnd so callers unblock.
+      const words = text.split(/\s+/).length;
+      setTimeout(() => { onEnd && onEnd(); }, Math.max(1200, words * 90));
+      return;
+    } catch (_) {
+      // Fall through to browser TTS if the bridge blew up
+    }
+  }
+
   const url = clipKey && clipManifest && clipManifest[clipKey];
   if (url) {
     const a = new Audio(url);

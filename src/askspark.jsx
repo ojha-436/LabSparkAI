@@ -65,10 +65,11 @@ export function AskSpark({ experiment, getLabState }) {
 
   return (
     <>
-      {/* Floating launcher button */}
+      {/* Floating launcher button — hidden in embed mode (Flutter's FAB replaces it) */}
       <button
         onClick={() => setOpen((o) => !o)}
-        className="press"
+        className="press ask-spark-fab"
+        data-embed-hide="1"
         title="Ask Spark for help"
         style={{
           position: "fixed", left: 22, bottom: 22, zIndex: 90,
@@ -83,7 +84,8 @@ export function AskSpark({ experiment, getLabState }) {
 
       {open && (
         <div
-          className="card-glass"
+          className="card-glass ask-spark-modal"
+          data-embed-hide="1"
           style={{
             position: "fixed", left: 22, bottom: 80, zIndex: 91, width: 360, maxWidth: "90vw",
             height: 460, display: "flex", flexDirection: "column", background: C.cream,

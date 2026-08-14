@@ -18,7 +18,13 @@ import { GenLab3D } from "./genlab3d.jsx";
 import { GEN_LABS } from "./genlabdata.js";
 import { CATALOG } from "./data.js";
 import firebase, { db } from "./firebaseInit.js";
-const { useState: aUS } = React;
+import { readEmbed, applyEmbedBodyClass, markReady, reportComplete, reportExit } from "./embed.js";
+const { useState: aUS, useEffect: aUE } = React;
+
+/* When loaded inside the Android Flutter WebView with `?embed=1&labId=<id>`,
+   render just the lab — no landing, login, or dashboard chrome. This lets
+   the same web bundle serve both the standalone SaaS site and the native app. */
+const EMBED = readEmbed();
 
 const TAB_FOR = { dashboard: "home", practical: "home", join: "home", family: "home", progress: "progress", achievements: "progress", profile: "profile" };
 const HAS_NAV = new Set(Object.keys(TAB_FOR));
@@ -71,13 +77,31 @@ const DEFAULT_STUDENT = {
 // Which home view a role lands on after login.
 const homeFor = (role) => (role === "teacher" ? "teacher" : role === "parent" ? "parent" : "dashboard");
 
+/* Given a labId from the embed URL, choose the right lab renderer view.
+   Matches the id→view mapping used elsewhere in this file. */
+function _viewForEmbed(labId) {
+  if (!labId) return "landing";
+  if (labId === "acid-base" || labId === "acids-bases") return "lab";
+  if (labId === "circuit" || labId === "circuits") return "circuit-lab";
+  return "genlab";
+}
+
 function App() {
-  const [view, setView] = aUS("landing");
+  const [view, setView] = aUS(EMBED.on ? _viewForEmbed(EMBED.labId) : "landing");
   const [reportData, setReportData] = aUS(null);
   const [toast, setToast] = aUS(null);
   const [uid, setUid] = aUS(null);
   const [student, setStudent] = aUS(DEFAULT_STUDENT);
   const [reportReturn, setReportReturn] = aUS("dashboard");
+
+  // Apply the embed CSS class + let native shell know we're loading.
+  aUE(() => {
+    applyEmbedBodyClass(EMBED);
+    if (EMBED.on) {
+      // Announce readiness once React has painted at least once.
+      setTimeout(() => markReady(), 250);
+    }
+  }, []);
 
   // ── Browser back/forward support ──
   // Each view change pushes a history entry so the browser Back button moves
@@ -89,12 +113,14 @@ function App() {
   // A ?join=CODE deep link (shared by a teacher) routes a student straight to the join screen.
   const joinParamRef = React.useRef(typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("join") : null);
   React.useEffect(() => {
+    if (EMBED.on) return; // Embed mode: don't touch browser history — native shell owns navigation.
     window.history.replaceState({ view: "landing" }, "");
     const onPop = (e) => { popRef.current = true; setView((e.state && e.state.view) || "landing"); };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
   React.useEffect(() => {
+    if (EMBED.on) return;
     if (firstRef.current) { firstRef.current = false; return; }
     if (popRef.current) { popRef.current = false; return; }
     window.history.pushState({ view }, "");
@@ -114,6 +140,9 @@ function App() {
   const logout = () => { firebase.auth().signOut().catch(() => {}); };
 
   React.useEffect(() => {
+    // In embed mode (Android WebView), navigation is owned by the Flutter shell.
+    // Never let a Firebase auth state change override the initial lab view.
+    if (EMBED.on) return;
     const unsubscribe = firebase.auth().onAuthStateChanged(async (user) => {
       if (user) {
         setUid(user.uid);
@@ -186,7 +215,7 @@ function App() {
     });
   };
 
-  const [activeExpId, setActiveExpId] = aUS(null);
+  const [activeExpId, setActiveExpId] = aUS(EMBED.on ? EMBED.labId : null);
 
   const openExp = (id) => {
     const isGen = !!GEN_LABS[id];
@@ -329,15 +358,37 @@ function App() {
       )}
       
       {view === "lab" && (
-        <ARLab onExit={() => setView("dashboard")} onComplete={complete} addXp={addXp} />
+        <ARLab
+          onExit={() => (EMBED.on ? reportExit() : setView("dashboard"))}
+          onComplete={(r) => {
+            if (EMBED.on) reportComplete(r);
+            complete(r);
+          }}
+          addXp={addXp}
+        />
       )}
 
       {view === "circuit-lab" && (
-        <CircuitLab onExit={() => setView("dashboard")} onComplete={complete} addXp={addXp} />
+        <CircuitLab
+          onExit={() => (EMBED.on ? reportExit() : setView("dashboard"))}
+          onComplete={(r) => {
+            if (EMBED.on) reportComplete(r);
+            complete(r);
+          }}
+          addXp={addXp}
+        />
       )}
 
       {view === "genlab" && GEN_LABS[activeExpId] && (
-        <GenLab3D spec={GEN_LABS[activeExpId]} onExit={() => setView("dashboard")} onComplete={complete} addXp={addXp} />
+        <GenLab3D
+          spec={GEN_LABS[activeExpId]}
+          onExit={() => (EMBED.on ? reportExit() : setView("dashboard"))}
+          onComplete={(r) => {
+            if (EMBED.on) reportComplete(r);
+            complete(r);
+          }}
+          addXp={addXp}
+        />
       )}
 
       {view === "report" && reportData && (

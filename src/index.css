@@ -55,6 +55,307 @@
   box-sizing: border-box;
 }
 
+/* ══════════════════════════════════════════════════════════════════
+   EMBED MODE — MOBILE-NATIVE LAB LAYOUT
+   ────────────────────────────────────────────────────────────────
+   Loaded when the URL has `?embed=1`, i.e. inside the Android Flutter
+   WebView. Rewrites the entire lab page to feel like a real mobile app:
+
+     ┌───────────────────────────────┐
+     │                               │
+     │        3D LAB VIEWPORT        │  ← sticky-top, ~55dvh, edge-to-edge
+     │      (interactive canvas)     │
+     │                               │
+     ├───────────────────────────────┤
+     │  📋 Aim: Test soluble subs... │  ← compact chapter/aim strip
+     ├───────────────────────────────┤
+     │  Observations                 │
+     │  ┌────────────────────────┐   │  ← scrollable content below
+     │  │ Sugar  [Dissolves]     │   │
+     │  │ Salt   [Dissolves]     │   │
+     │  │ Sand   [Does not]      │   │
+     │  └────────────────────────┘   │
+     │                               │
+     │ ┌───────────────────────────┐ │
+     │ │   ✓ Submit Lab            │ │  ← sticky bottom action button
+     │ └───────────────────────────┘ │
+     └───────────────────────────────┘
+
+   Flutter provides:  header chrome  +  small Spark FAB.  We hide
+   everything the web app draws that duplicates that.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ─── 1. Kill everything Flutter already provides ─── */
+body.embed-mode nav,
+body.embed-mode .landing-nav,
+body.embed-mode .dashboard-nav,
+body.embed-mode [data-embed-hide="1"],
+body.embed-mode .voice-hud-panel,
+body.embed-mode .voice-hud-header,
+body.embed-mode .voice-hud-controls,
+body.embed-mode .voice-hud-soundwave-core,
+body.embed-mode .voice-overlay-msg,
+body.embed-mode .voice-btn-mic,
+body.embed-mode .ask-spark-fab,
+body.embed-mode .ask-spark-modal {
+  display: none !important;
+}
+
+/* Belt & braces — catch every lab's dark top header by shape, so a stale
+   deploy without `data-embed-hide` still gets hidden. The header is the
+   first child of the lab root, styled with height: 60 and a dark background. */
+body.embed-mode #root > div > div:first-child[style*="height: 60"],
+body.embed-mode #root > div > div:first-child[style*="height:60"],
+body.embed-mode #root > div > div[style*="height: 60px"][style*="rgb(15"],
+body.embed-mode #root > div > div[style*="height: 60px"][style*="#0f172a"],
+body.embed-mode #root > div > div[style*="height: 60px"][style*="color: rgb(255"],
+body.embed-mode div[style*="height: 60px"][style*="position: sticky"],
+body.embed-mode div[style*="height: 60px"][style*="background: rgb(1"] {
+  display: none !important;
+  height: 0 !important;
+  visibility: hidden !important;
+}
+
+/* ─── 2. Baseline: use dynamic viewport height so iOS/Android
+        chrome doesn't clip content. Full-bleed background. ─── */
+body.embed-mode {
+  overflow: hidden;
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  max-height: 100dvh !important;
+  width: 100vw;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: #f8fafc;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+body.embed-mode #root {
+  height: 100dvh;
+  width: 100vw;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── 3. The lab's outer `height: 100vh` container becomes the
+        single-column flex layout the mobile app expects. ─── */
+body.embed-mode #root > div {
+  height: 100dvh !important;
+  width: 100vw !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* The desktop layout's "main row" (left content + right voice HUD)
+   flattens into a single vertical column. */
+body.embed-mode #root > div > div[style*="display: flex"],
+body.embed-mode #root > div > div[style*="display:flex"] {
+  flex: 1 !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  overflow: hidden !important;
+}
+
+/* The scrollable left content panel — this is our main scroller. */
+body.embed-mode #root > div > div > div:first-child {
+  flex: 1 !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: #f8fafc !important;
+}
+
+/* ─── 4. Kill the desktop max-width + padding wrapper. ─── */
+body.embed-mode [style*="max-width: 860px"],
+body.embed-mode [style*="max-width: 900px"],
+body.embed-mode [style*="maxWidth: 860"],
+body.embed-mode [style*="maxWidth: 900"],
+body.embed-mode [style*="max-width:860"],
+body.embed-mode [style*="max-width:900"] {
+  max-width: 100% !important;
+  width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* ─── 5. THE 3D LAB VIEWPORT — the star of the show ───
+        Fills full width, ~55% of viewport height, edge-to-edge.
+        NO sticky positioning — it was intercepting touch events and
+        making the 3D scene feel unresponsive. R3F's OrbitControls + tap
+        detection needs the canvas to be a normal-flow element with
+        touch-action:none. */
+body.embed-mode .lab-viewport-3d,
+body.embed-mode div[style*="height: 440px"],
+body.embed-mode div[style*="height:440px"],
+body.embed-mode div[style*="height: 380px"],
+body.embed-mode div[style*="height:380px"] {
+  height: 58dvh !important;
+  min-height: 340px !important;
+  max-height: 58dvh !important;
+  width: 100% !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  border: none !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  box-shadow: 0 2px 8px rgba(15,23,42,0.04) !important;
+  background: #eef2f6 !important;
+  position: relative !important;
+  z-index: 1 !important;
+  touch-action: none !important;   /* keep browser from stealing swipes */
+  overscroll-behavior: contain !important;
+  pointer-events: auto !important;
+  isolation: isolate;
+}
+
+/* React Three Fiber canvas — the actual GL surface. Must consume every
+   pointer event before the WebView interprets it as a scroll gesture. */
+body.embed-mode canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+  touch-action: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  pointer-events: auto !important;
+}
+
+/* The scrollable content that lives BELOW the viewport must NOT eat
+   touches that started on the canvas. We split the two so R3F "own"s
+   its area. */
+body.embed-mode #root > div > div > div:first-child {
+  scroll-behavior: smooth;
+}
+
+/* ─── 6. AIM / CHAPTER STRIP — compact, right below viewport ─── */
+body.embed-mode .card-glass {
+  border-radius: 10px !important;
+  padding: 10px 14px !important;
+  margin: 10px 12px !important;
+  font-size: 13.5px !important;
+  line-height: 1.45 !important;
+}
+
+body.embed-mode .card-glass p {
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+  margin: 4px 0 0 !important;
+}
+
+body.embed-mode .card-glass .mono {
+  font-size: 10.5px !important;
+}
+
+/* ─── 7. OBSERVATION TABLE — mobile-friendly grid ─── */
+body.embed-mode .observation-ledger {
+  margin: 12px !important;
+  border-radius: 12px !important;
+}
+
+body.embed-mode .observation-ledger > div {
+  padding: 12px 14px !important;
+}
+
+body.embed-mode .observation-ledger > div h4 {
+  font-size: 14px !important;
+}
+
+/* Verdict rows — bigger tap targets for the classification pills */
+body.embed-mode .observation-ledger [style*="grid-template-columns"] {
+  padding: 14px 14px !important;
+  grid-template-columns: 1fr !important;
+  gap: 8px !important;
+}
+
+body.embed-mode .observation-ledger [style*="grid-template-columns"] > div:last-child button {
+  min-height: 40px !important;
+  padding: 8px 14px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+}
+
+/* ─── 8. BUTTONS — enforce 44dp minimum tap target ─── */
+body.embed-mode .press,
+body.embed-mode .btn,
+body.embed-mode button:not(.observation-ledger button):not([class*="tube"]):not([class*="tile"]):not([class*="cabinet"]) {
+  min-height: 44px !important;
+  padding: 10px 16px !important;
+  font-size: 14px !important;
+  border-radius: 10px !important;
+  white-space: normal !important;
+  line-height: 1.3 !important;
+}
+
+/* Primary CTA buttons — full width on mobile */
+body.embed-mode .btn-primary,
+body.embed-mode .btn.btn-primary {
+  width: 100% !important;
+  padding: 14px 20px !important;
+  font-size: 15px !important;
+  font-weight: 800 !important;
+}
+
+/* ─── 9. SUBMIT / GRADE button — full-width bottom bar ─── */
+body.embed-mode div[style*="justifyContent: \"center\""],
+body.embed-mode div[style*="justify-content: center"] {
+  padding: 0 12px !important;
+}
+
+body.embed-mode div[style*="justifyContent: \"center\""] > .btn,
+body.embed-mode div[style*="justifyContent: \"center\""] > button {
+  width: 100% !important;
+}
+
+/* ─── 10. Typography floor — no 8-11px labels ─── */
+body.embed-mode {
+  font-size: 14px;
+}
+
+body.embed-mode span,
+body.embed-mode div,
+body.embed-mode p,
+body.embed-mode label {
+  font-size: max(12px, 1em);
+}
+
+body.embed-mode .mono {
+  font-size: 11px !important;
+}
+
+/* ─── 11. Any legacy fixed-position floating chrome from the labs
+         gets neutralized so it doesn't overlap Flutter's FAB.  ─── */
+body.embed-mode [style*="position: fixed"][style*="left: 22px"],
+body.embed-mode [style*="position: fixed"][style*="left:22px"],
+body.embed-mode [style*="position:fixed"][style*="left: 22px"],
+body.embed-mode [style*="position:fixed"][style*="left:22px"] {
+  display: none !important;
+}
+
+/* ─── 12. Bottom safe-area — so sticky content isn't hidden
+         behind the Android gesture bar / Flutter FAB area. ─── */
+body.embed-mode #root > div > div > div:first-child {
+  padding-bottom: 96px !important; /* clearance for Flutter Spark FAB */
+}
+
+/* ─── 13. Landscape adjustments — smaller viewport, side-by-side ─── */
+@media (orientation: landscape) and (max-height: 500px) {
+  body.embed-mode .lab-viewport-3d,
+  body.embed-mode div[style*="height: 440px"],
+  body.embed-mode div[style*="height:440px"] {
+    height: 70dvh !important;
+  }
+}
+
 html {
   scroll-behavior: smooth;
 }

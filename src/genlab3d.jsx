@@ -400,7 +400,7 @@ export function GenLab3D({ spec, onExit, onComplete, addXp }) {
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: C.paper }} className="grid-blueprint">
       {/* header */}
-      <div style={{ height: 60, background: C.inkDeep, color: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 22px", flexShrink: 0, zIndex: 30, borderBottom: `1px solid ${C.lineDark}` }}>
+      <div data-embed-hide="1" style={{ height: 60, background: C.inkDeep, color: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 22px", flexShrink: 0, zIndex: 30, borderBottom: `1px solid ${C.lineDark}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <button onClick={onExit} className="press" style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.06)", border: `1px solid ${C.lineInk}`, color: "#fff", padding: "7px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
             <Ic n="back" s={14} c="#fff" sw={2} />Exit Lab
