@@ -7,6 +7,9 @@
       "hosting": {
         "app": [
           "labspark-app"
+        ],
+        "default": [
+          "gen-lang-client-0686614374"
         ]
       }
     }
