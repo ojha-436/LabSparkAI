@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- LabSpark AI adaptive-icon FOREGROUND layer: white flask + amber spark.
+     Drawn in a 108×108 dp viewport (Android adaptive-icon spec). The safe
+     zone is a 66 dp circle at the center — everything inside that survives
+     mask cropping. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- White flask silhouette, scaled and centered into the safe zone -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M48.6,40.4 L59.4,40.4 Q61.4,40.4 61.4,42.4 L61.4,66.0 L90.4,116.6 Q92.4,120.0 91.1,122.0 Q89.1,124.0 85.7,124.0 L22.3,124.0 Q18.9,124.0 16.9,122.0 Q15.6,120.0 17.6,116.6 L46.6,66.0 L46.6,42.4 Q46.6,40.4 48.6,40.4 Z"/>
+    <!-- Neck ring -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.55"
+        android:pathData="M44.6,61.8 L63.4,61.8 Q64.4,61.8 64.4,62.8 L64.4,65.2 Q64.4,66.2 63.4,66.2 L44.6,66.2 Q43.6,66.2 43.6,65.2 L43.6,62.8 Q43.6,61.8 44.6,61.8 Z"/>
+    <!-- Amber 4-point spark -->
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M54.0,74.6 C54.0,83.3 58.1,93.4 66.2,97.4 C58.1,101.4 54.0,111.5 54.0,120.2 C54.0,111.5 49.9,101.4 41.8,97.4 C49.9,93.4 54.0,83.3 54.0,74.6 Z"/>
+</vector>

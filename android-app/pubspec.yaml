@@ -1,0 +1,57 @@
+name: labspark_ai
+description: LabSpark AI — AI-first virtual science laboratory for CBSE Class 6–10.
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State + routing
+  flutter_riverpod: ^2.5.1
+  go_router: ^14.2.7
+
+  # Firebase
+  firebase_core: ^3.4.0
+  firebase_auth: ^5.2.0
+  cloud_firestore: ^5.3.0
+  google_sign_in: ^6.2.1
+
+  # UI + design system
+  google_fonts: ^6.2.1
+  flutter_svg: ^2.0.10+1
+  cached_network_image: ^3.4.1
+  shimmer: ^3.0.0
+
+  # WebView — hosts the R3F 3D lab scenes served from Firebase Hosting.
+  flutter_inappwebview: ^6.1.5
+
+  # Voice — Spark speaks answers aloud (flutter_tts) and students can ask
+  # via mic (speech_to_text). Both use native Android APIs.
+  flutter_tts: ^4.2.0
+  speech_to_text: ^7.0.0
+  permission_handler: ^11.3.1
+
+  # PDF export for the CBSE practical file.
+  pdf: ^3.11.1
+  printing: ^5.13.4
+
+  # Utilities
+  shared_preferences: ^2.3.2
+  intl: ^0.19.0
+  collection: ^1.18.0
+  http: ^1.2.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
