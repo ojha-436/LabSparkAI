@@ -28,31 +28,41 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 20,
-        title: Row(
-          children: [
-            _AvatarChip(name: firstName, photoURL: profile?.photoURL),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Hi, $firstName 👋',
-                      style: text.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 15,
-                      )),
-                  Text('Ready for today\'s experiment?',
-                      style: text.bodySmall
-                          ?.copyWith(color: scheme.onSurfaceVariant)),
-                ],
+        // Cap text scaling in the AppBar so a Class-6 student with
+        // system font size at 130% doesn't overflow the greeting row.
+        title: MediaQuery.withClampedTextScaling(
+          maxScaleFactor: 1.2,
+          child: Row(
+            children: [
+              _AvatarChip(name: firstName, photoURL: profile?.photoURL),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Hi, $firstName 👋',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: text.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                        )),
+                    Text('Ready for today\'s experiment?',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: text.bodySmall
+                            ?.copyWith(color: scheme.onSurfaceVariant)),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           IconButton(
             onPressed: () {},
+            tooltip: 'Notifications',
             icon: const Icon(Icons.notifications_none_rounded),
           ),
           const SizedBox(width: 8),
@@ -234,24 +244,32 @@ class _StreakPill extends StatelessWidget {
   final int days;
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.18),
-        borderRadius: BorderRadius.circular(100),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text('🔥', style: TextStyle(fontSize: 13)),
-          const SizedBox(width: 4),
-          Text('$days day${days == 1 ? '' : 's'}',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              )),
-        ],
+    return Semantics(
+      label: '$days day streak',
+      excludeSemantics: true,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(100),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.local_fire_department_rounded,
+              size: 14,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 4),
+            Text('$days day${days == 1 ? '' : 's'}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                )),
+          ],
+        ),
       ),
     );
   }

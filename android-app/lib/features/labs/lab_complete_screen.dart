@@ -57,7 +57,10 @@ class _LabCompleteScreenState extends ConsumerState<LabCompleteScreen> {
         child: Column(
           children: [
             // ── Hero card with score + badge ──
-            Container(
+            Semantics(
+              label: 'Lab complete. Score ${widget.score} out of ${widget.total}. ${widget.badge ?? ''}',
+              container: true,
+              child: Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
               decoration: const BoxDecoration(
@@ -134,6 +137,7 @@ class _LabCompleteScreenState extends ConsumerState<LabCompleteScreen> {
                   ],
                 ],
               ),
+            ),
             ),
 
             // ── Spark's feedback ──

@@ -38,7 +38,17 @@ class _JoinClassSheetState extends ConsumerState<_JoinClassSheet> {
       if (!mounted) return;
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Joined class ${_codeCtl.text.trim().toUpperCase()} 🎓'),
+        content: Row(
+          children: [
+            const Icon(Icons.school_rounded, size: 18, color: Colors.white),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Joined class ${_codeCtl.text.trim().toUpperCase()}',
+              ),
+            ),
+          ],
+        ),
         behavior: SnackBarBehavior.floating,
       ));
     } on ProfileException catch (e) {

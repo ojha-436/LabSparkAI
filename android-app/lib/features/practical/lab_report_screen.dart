@@ -17,12 +17,22 @@ import '../../data/models/lab.dart';
 /// Data comes from the Firestore completion entry (see
 /// LabRunnerScreen._saveCompletion). Anything not stored on the entry is
 /// derived from the static [Lab] catalog (aim, chapter, etc).
-class LabReportScreen extends ConsumerWidget {
+class LabReportScreen extends ConsumerStatefulWidget {
   const LabReportScreen({super.key, required this.entry});
   final Map<String, dynamic> entry;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LabReportScreen> createState() => _LabReportScreenState();
+}
+
+class _LabReportScreenState extends ConsumerState<LabReportScreen> {
+  bool _exporting = false;
+
+  Map<String, dynamic> get entry => widget.entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final ref = this.ref;
     final scheme = Theme.of(context).colorScheme;
     final labId = entry['id'] as String? ?? '';
     final lab = ref.read(labsRepositoryProvider).findById(labId);
@@ -78,22 +88,37 @@ class LabReportScreen extends ConsumerWidget {
           ),
           IconButton(
             tooltip: 'Export as PDF',
-            icon: const Icon(Icons.picture_as_pdf_rounded),
-            onPressed: () => _exportPdf(
-              context,
-              studentName: studentName,
-              title: title,
-              grade: grade,
-              subject: subject,
-              chapter: chapter,
-              date: date,
-              score: score,
-              total: total,
-              feedback: feedback,
-              badge: badge,
-              observations: observations,
-              lab: lab,
-            ),
+            icon: _exporting
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.picture_as_pdf_rounded),
+            onPressed: _exporting
+                ? null
+                : () async {
+                    setState(() => _exporting = true);
+                    try {
+                      await _exportPdf(
+                        context,
+                        studentName: studentName,
+                        title: title,
+                        grade: grade,
+                        subject: subject,
+                        chapter: chapter,
+                        date: date,
+                        score: score,
+                        total: total,
+                        feedback: feedback,
+                        badge: badge,
+                        observations: observations,
+                        lab: lab,
+                      );
+                    } finally {
+                      if (mounted) setState(() => _exporting = false);
+                    }
+                  },
           ),
         ],
       ),
@@ -497,6 +522,14 @@ class LabReportScreen extends ConsumerWidget {
     required Map<String, dynamic> observations,
     Lab? lab,
   }) async {
+    // Yield a frame first so the spinner (added in the AppBar action)
+    // gets painted before the pdf package starts its ~100-300 ms doc
+    // assembly + serialisation on the main isolate.
+    // TODO(perf): move the whole pw.Document build into a compute() isolate
+    //   once we extract _pdfSection/_pdfHeading/_pdfCell to top-level
+    //   functions (pdf widgets aren't isolate-safe as class instances).
+    await Future<void>.delayed(const Duration(milliseconds: 16));
+
     final doc = pw.Document(
       title: 'LabSpark AI — $title',
       author: 'LabSpark AI',

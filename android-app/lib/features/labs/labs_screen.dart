@@ -73,6 +73,7 @@ class _LabsScreenState extends ConsumerState<LabsScreen> {
             : [
                 IconButton(
                   onPressed: () => setState(() => _searchOpen = true),
+                  tooltip: 'Search labs',
                   icon: const Icon(Icons.search_rounded),
                 ),
                 const SizedBox(width: 4),
@@ -135,7 +136,11 @@ class _SearchField extends StatelessWidget {
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
         ),
-        IconButton(onPressed: onClose, icon: const Icon(Icons.close_rounded)),
+        IconButton(
+          onPressed: onClose,
+          tooltip: 'Close search',
+          icon: const Icon(Icons.close_rounded),
+        ),
       ],
     );
   }

@@ -42,6 +42,7 @@ class _LabRunnerScreenState extends ConsumerState<LabRunnerScreen> {
   double _progress = 0;
   int _tested = 0;
   int _total = 0;
+  String? _loadError; // non-null when the R3F bundle failed to load
 
   @override
   void initState() {
@@ -66,7 +67,19 @@ class _LabRunnerScreenState extends ConsumerState<LabRunnerScreen> {
     final url = labUrl(widget.lab.id);
     final topPadding = MediaQuery.of(context).padding.top;
 
-    return Scaffold(
+    // Intercept the Android system back gesture: if we're in fullscreen
+    // mode, exit fullscreen first (bringing the header back) instead of
+    // popping the entire lab route. Prevents students from getting
+    // trapped when they miss the small floating exit chip.
+    return PopScope(
+      canPop: !_fullscreen,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _fullscreen) {
+          HapticFeedback.selectionClick();
+          setState(() => _fullscreen = false);
+        }
+      },
+      child: Scaffold(
       backgroundColor: LabSparkTokens.slate950,
       // Full-bleed body — safe-area handled inside so the WebView can be edge-to-edge.
       body: Stack(
@@ -100,14 +113,29 @@ class _LabRunnerScreenState extends ConsumerState<LabRunnerScreen> {
                         await InAppWebViewController.clearAllCache();
                       } catch (_) {}
                     },
-                    onLoadStart: (_, __) =>
-                        setState(() => _progress = 0.05),
+                    onLoadStart: (_, __) => setState(() {
+                      _progress = 0.05;
+                      _loadError = null;
+                    }),
                     onProgressChanged: (_, p) =>
                         setState(() => _progress = p / 100),
                     onLoadStop: (_, __) async {
                       setState(() => _progress = 1);
                       await _injectBridge();
                       await _sendInit();
+                    },
+                    onReceivedError: (_, __, err) {
+                      setState(() {
+                        _loadError = err.description.isNotEmpty
+                            ? err.description
+                            : 'Couldn\'t load the lab. Check your internet connection.';
+                      });
+                    },
+                    onReceivedHttpError: (_, __, err) {
+                      setState(() {
+                        _loadError =
+                            'Server returned ${err.statusCode}. Try again.';
+                      });
                     },
                     onConsoleMessage: (_, msg) {
                       if (msg.messageLevel == ConsoleMessageLevel.ERROR) {
@@ -117,8 +145,22 @@ class _LabRunnerScreenState extends ConsumerState<LabRunnerScreen> {
                   ),
           ),
 
-          // ── Loading overlay ─────────────────────────────────────────
-          if (!_ready && labHostConfigured)
+          // ── Load-error overlay with retry ───────────────────────────
+          if (_loadError != null && labHostConfigured)
+            Positioned.fill(
+              child: _LabLoadErrorOverlay(
+                message: _loadError!,
+                onRetry: () {
+                  setState(() {
+                    _loadError = null;
+                    _ready = false;
+                    _progress = 0;
+                  });
+                  _webView?.reload();
+                },
+              ),
+            )
+          else if (!_ready && labHostConfigured)
             Positioned.fill(
               child: IgnorePointer(
                 ignoring: _ready,
@@ -162,6 +204,7 @@ class _LabRunnerScreenState extends ConsumerState<LabRunnerScreen> {
                 opacity: _fullscreen ? 1 : 0,
                 child: _FloatingChip(
                   icon: Icons.fullscreen_exit_rounded,
+                  tooltip: 'Exit fullscreen',
                   onTap: () {
                     HapticFeedback.selectionClick();
                     setState(() => _fullscreen = false);
@@ -178,6 +221,7 @@ class _LabRunnerScreenState extends ConsumerState<LabRunnerScreen> {
             child: _SparkFab(onTap: _openSparkSheet),
           ),
         ],
+      ),
       ),
     );
   }
@@ -425,7 +469,11 @@ class _CompactHeader extends StatelessWidget {
             child: Row(
               children: [
                 // Exit
-                _HeaderIconButton(icon: Icons.close_rounded, onTap: onExit),
+                _HeaderIconButton(
+                  icon: Icons.close_rounded,
+                  onTap: onExit,
+                  tooltip: 'Exit lab',
+                ),
                 // Title (single line — everything on the same row)
                 Expanded(
                   child: Row(
@@ -461,6 +509,7 @@ class _CompactHeader extends StatelessWidget {
                 _HeaderIconButton(
                   icon: Icons.fullscreen_rounded,
                   onTap: onFullscreen,
+                  tooltip: 'Fullscreen',
                 ),
               ],
             ),
@@ -481,18 +530,24 @@ class _CompactHeader extends StatelessWidget {
 }
 
 class _HeaderIconButton extends StatelessWidget {
-  const _HeaderIconButton({required this.icon, required this.onTap});
+  const _HeaderIconButton({
+    required this.icon,
+    required this.onTap,
+    required this.tooltip,
+  });
   final IconData icon;
   final VoidCallback onTap;
+  final String tooltip;
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 44,
+      width: 48,       // 48dp = Material minimum touch target
       height: 48,
       child: IconButton(
         splashRadius: 22,
         padding: EdgeInsets.zero,
         onPressed: onTap,
+        tooltip: tooltip,
         icon: Icon(icon, color: Colors.white, size: 22),
       ),
     );
@@ -557,20 +612,28 @@ class _LivePill extends StatelessWidget {
 }
 
 class _FloatingChip extends StatelessWidget {
-  const _FloatingChip({required this.icon, required this.onTap});
+  const _FloatingChip({
+    required this.icon,
+    required this.onTap,
+    required this.tooltip,
+  });
   final IconData icon;
   final VoidCallback onTap;
+  final String tooltip;
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.black.withValues(alpha: 0.55),
-      shape: const CircleBorder(),
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        child: SizedBox(
-          width: 42, height: 42,
-          child: Icon(icon, color: Colors.white, size: 22),
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.black.withValues(alpha: 0.55),
+        shape: const CircleBorder(),
+        child: InkWell(
+          onTap: onTap,
+          customBorder: const CircleBorder(),
+          child: SizedBox(
+            width: 48, height: 48, // Material minimum touch target
+            child: Icon(icon, color: Colors.white, size: 22),
+          ),
         ),
       ),
     );
@@ -602,7 +665,10 @@ class _SparkFabState extends State<_SparkFab>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
+    return Semantics(
+      button: true,
+      label: 'Ask Spark for help with this experiment',
+      child: AnimatedBuilder(
       animation: _ctl,
       builder: (_, __) {
         final scale = 0.97 + (_ctl.value * 0.05);
@@ -647,6 +713,7 @@ class _SparkFabState extends State<_SparkFab>
           ),
         );
       },
+      ),
     );
   }
 }
@@ -683,6 +750,69 @@ class _LabLoadingOverlay extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Shown when the WebView returns a network / HTTP error while loading
+/// the R3F 3D lab bundle. Offers a retry so students on flaky cellular
+/// aren't stuck staring at a blank white surface.
+class _LabLoadErrorOverlay extends StatelessWidget {
+  const _LabLoadErrorOverlay({required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: LabSparkTokens.slate950,
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 72, height: 72,
+            decoration: BoxDecoration(
+              color: LabSparkTokens.rose600.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Icon(
+              Icons.wifi_off_rounded,
+              color: LabSparkTokens.rose600,
+              size: 36,
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Couldn\'t load the lab',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 13,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 24),
+          FilledButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Try again'),
+            style: FilledButton.styleFrom(
+              backgroundColor: LabSparkTokens.teal600,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+            ),
+          ),
+        ],
       ),
     );
   }
