@@ -214,17 +214,63 @@ function FanModel({ color = "#60a5fa", active }) {
     </group>
   );
 }
-function PendulumModel({ color = "#d97706", active }) {
-  const piv = iUR(); const t = iUR(0);
-  useFrame((_, dt) => { t.current += dt; if (piv.current) piv.current.rotation.z = Math.sin(t.current * (active ? 3.1 : 0.9)) * (active ? 0.55 : 0.05); });
+/* Simple-pendulum apparatus — a physical-simulation swing on a proper
+   T-stand. String length scales with each item's "length hint" so
+   longer variants really do swing more slowly on screen. */
+function PendulumModel({ color = "#d97706", active, length = 0.32 }) {
+  const piv = iUR();
+  const t = iUR(0);
+  // Real pendulum period: T = 2π√(L/g). We use a fake g so short strings
+  // clearly whip faster and long strings visibly slow down.
+  useFrame((_, dt) => {
+    t.current += dt;
+    if (!piv.current) return;
+    const g = 9.8; // "gravity"
+    const T = 2 * Math.PI * Math.sqrt(length / g) * 0.6; // scaled
+    const amp = active ? 0.55 : 0.06;
+    piv.current.rotation.z = Math.sin(t.current * ((2 * Math.PI) / T)) * amp;
+  });
   return (
     <group>
-      <mesh position={[0, 0.015, 0]}><cylinderGeometry args={[0.11, 0.13, 0.03, 24]} /><meshStandardMaterial color="#374151" metalness={0.4} roughness={0.5} /></mesh>
-      <mesh castShadow position={[-0.08, 0.27, 0]}><cylinderGeometry args={[0.013, 0.013, 0.5, 12]} /><meshStandardMaterial color="#475569" metalness={0.6} roughness={0.4} /></mesh>
-      <mesh position={[-0.02, 0.51, 0]} rotation={[0, 0, Math.PI / 2]}><cylinderGeometry args={[0.011, 0.011, 0.13, 10]} /><meshStandardMaterial color="#475569" metalness={0.6} roughness={0.4} /></mesh>
-      <group ref={piv} position={[0.04, 0.51, 0]}>
-        <mesh position={[0, -0.16, 0]}><cylinderGeometry args={[0.004, 0.004, 0.32, 8]} /><meshStandardMaterial color="#94a3b8" /></mesh>
-        <mesh castShadow position={[0, -0.345, 0]}><sphereGeometry args={[0.05, 20, 20]} /><meshStandardMaterial color={color} metalness={0.55} roughness={0.3} /></mesh>
+      {/* heavy weighted base */}
+      <mesh position={[0, 0.015, 0]} castShadow>
+        <cylinderGeometry args={[0.12, 0.14, 0.03, 32]} />
+        <meshPhysicalMaterial color="#1f2937" metalness={0.55} roughness={0.35} clearcoat={0.4} />
+      </mesh>
+      {/* vertical stand rod — chrome */}
+      <mesh castShadow position={[-0.08, 0.3, 0]}>
+        <cylinderGeometry args={[0.014, 0.014, 0.58, 16]} />
+        <meshPhysicalMaterial color="#cbd5e1" metalness={0.95} roughness={0.15} clearcoat={0.8} />
+      </mesh>
+      {/* horizontal boom */}
+      <mesh position={[-0.02, 0.58, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
+        <cylinderGeometry args={[0.012, 0.012, 0.16, 12]} />
+        <meshPhysicalMaterial color="#cbd5e1" metalness={0.9} roughness={0.18} clearcoat={0.7} />
+      </mesh>
+      {/* small brass clamp at the pivot */}
+      <mesh position={[0.055, 0.58, 0]} castShadow>
+        <sphereGeometry args={[0.018, 12, 12]} />
+        <meshPhysicalMaterial color="#a16207" metalness={0.7} roughness={0.3} />
+      </mesh>
+      {/* the swinging pendulum */}
+      <group ref={piv} position={[0.055, 0.58, 0]}>
+        {/* string */}
+        <mesh position={[0, -length / 2, 0]}>
+          <cylinderGeometry args={[0.0025, 0.0025, length, 8]} />
+          <meshStandardMaterial color="#e5e7eb" />
+        </mesh>
+        {/* bob — brass with a subtle sheen */}
+        <mesh castShadow position={[0, -length - 0.045, 0]}>
+          <sphereGeometry args={[0.05, 28, 28]} />
+          <meshPhysicalMaterial
+            color={color}
+            metalness={0.75}
+            roughness={0.28}
+            clearcoat={0.5}
+            clearcoatRoughness={0.3}
+            envMapIntensity={1.2}
+          />
+        </mesh>
       </group>
     </group>
   );
@@ -327,24 +373,86 @@ function BulbModel({ color = "#fde68a", active }) {
     </group>
   );
 }
+/* Candle with proper three-zone flame (dark inner / yellow luminous middle
+   / faint blue outer envelope) — matches the NCERT flame-zones diagram. */
 function CandleModel({ color = "#fef3c7", active }) {
   const flame = iUR();
+  const inner = iUR();
+  const outer = iUR();
   useFrame((s) => {
     if (!flame.current) return;
     const t = s.clock.elapsedTime;
-    flame.current.scale.y = 1 + Math.sin(t * 12) * 0.15;
-    flame.current.rotation.z = Math.sin(t * 7) * 0.08;
+    flame.current.scale.y = 1 + Math.sin(t * 12) * 0.14;
+    flame.current.scale.x = flame.current.scale.z = 1 + Math.sin(t * 15 + 1.2) * 0.06;
+    flame.current.rotation.z = Math.sin(t * 7) * 0.07;
+    if (inner.current) inner.current.scale.y = 1 + Math.sin(t * 20) * 0.08;
+    if (outer.current) outer.current.material.opacity = 0.42 + Math.sin(t * 9 + 0.4) * 0.08;
   });
   return (
     <group>
-      <mesh position={[0, 0.012, 0]}><cylinderGeometry args={[0.07, 0.08, 0.024, 20]} /><meshStandardMaterial color="#9ca3af" metalness={0.5} roughness={0.4} /></mesh>
-      <mesh castShadow position={[0, 0.12, 0]}><cylinderGeometry args={[0.035, 0.04, 0.2, 18]} /><meshStandardMaterial color={color} roughness={0.6} /></mesh>
-      <mesh position={[0, 0.235, 0]}><cylinderGeometry args={[0.004, 0.004, 0.025, 6]} /><meshStandardMaterial color="#1f2937" /></mesh>
-      <group ref={flame} position={[0, 0.275, 0]}>
-        <mesh><coneGeometry args={[0.02, 0.07, 12]} /><meshStandardMaterial color="#f97316" emissive="#f97316" emissiveIntensity={active ? 1.8 : 1.1} transparent opacity={0.9} /></mesh>
-        <mesh position={[0, -0.012, 0]}><coneGeometry args={[0.01, 0.035, 10]} /><meshStandardMaterial color="#fde047" emissive="#fde047" emissiveIntensity={2} /></mesh>
+      {/* pewter candle holder */}
+      <mesh position={[0, 0.012, 0]} castShadow>
+        <cylinderGeometry args={[0.07, 0.08, 0.024, 24]} />
+        <meshPhysicalMaterial color="#9ca3af" metalness={0.7} roughness={0.32} clearcoat={0.6} />
+      </mesh>
+      {/* wax cylinder with subtle side melt drips */}
+      <mesh castShadow position={[0, 0.12, 0]}>
+        <cylinderGeometry args={[0.035, 0.04, 0.2, 24]} />
+        <meshPhysicalMaterial color={color} roughness={0.5} sheen={0.5} sheenColor="#fef3c7" clearcoat={0.15} />
+      </mesh>
+      {/* darker melted top ring */}
+      <mesh position={[0, 0.221, 0]}>
+        <torusGeometry args={[0.033, 0.006, 8, 20]} />
+        <meshStandardMaterial color="#facc15" roughness={0.55} />
+      </mesh>
+      {/* charred wick */}
+      <mesh position={[0, 0.235, 0]}>
+        <cylinderGeometry args={[0.0045, 0.0035, 0.028, 6]} />
+        <meshStandardMaterial color="#0f172a" roughness={0.8} />
+      </mesh>
+      {/* Three-zone flame */}
+      <group ref={flame} position={[0, 0.28, 0]}>
+        {/* Outer envelope — pale blue, hottest, translucent */}
+        <mesh ref={outer}>
+          <coneGeometry args={[0.026, 0.11, 20]} />
+          <meshStandardMaterial
+            color="#60a5fa"
+            emissive="#93c5fd"
+            emissiveIntensity={active ? 1.6 : 1.1}
+            transparent
+            opacity={0.5}
+            depthWrite={false}
+          />
+        </mesh>
+        {/* Middle yellow luminous zone — partial combustion carbon glow */}
+        <mesh>
+          <coneGeometry args={[0.018, 0.075, 18]} />
+          <meshStandardMaterial
+            color="#f97316"
+            emissive="#fbbf24"
+            emissiveIntensity={active ? 2.2 : 1.5}
+            transparent
+            opacity={0.92}
+          />
+        </mesh>
+        {/* Inner dark zone — unburnt wax vapour, coolest */}
+        <mesh ref={inner} position={[0, -0.014, 0]}>
+          <coneGeometry args={[0.008, 0.03, 12]} />
+          <meshStandardMaterial
+            color="#1e293b"
+            emissive="#334155"
+            emissiveIntensity={0.4}
+            transparent
+            opacity={0.7}
+          />
+        </mesh>
       </group>
-      {active && <pointLight color="#fb923c" intensity={0.45} distance={1.2} position={[0, 0.3, 0]} />}
+      {active && (
+        <>
+          <pointLight color="#fdba74" intensity={0.55} distance={1.4} position={[0, 0.31, 0]} />
+          <pointLight color="#93c5fd" intensity={0.15} distance={0.6} position={[0, 0.34, 0]} />
+        </>
+      )}
     </group>
   );
 }
@@ -361,12 +469,52 @@ function SpoonModel({ color = "#cbd5e1" }) {
   );
 }
 
+/* A green plant leaf — used by the iodine-starch-test photosynthesis lab.
+   Extruded-ish flat oval with a central vein + subtle side veins. Small
+   drift animation when selected to feel alive. */
+function LeafModel({ color = "#166534", active }) {
+  const g = iUR();
+  useFrame((s) => {
+    if (!g.current) return;
+    g.current.rotation.z = Math.sin(s.clock.elapsedTime * (active ? 2.2 : 0.9)) * (active ? 0.14 : 0.05);
+  });
+  return (
+    <group ref={g} position={[0, 0.06, 0]}>
+      {/* leaf blade — a stretched sphere sliced flat */}
+      <mesh scale={[0.14, 0.02, 0.24]} rotation={[0, 0, 0]} castShadow>
+        <sphereGeometry args={[1, 24, 12]} />
+        <meshPhysicalMaterial
+          color={color}
+          roughness={0.55}
+          metalness={0}
+          clearcoat={0.35}
+          clearcoatRoughness={0.5}
+          sheen={0.6}
+          sheenColor="#4ade80"
+          side={2}
+        />
+      </mesh>
+      {/* central vein — slightly darker */}
+      <mesh position={[0, 0.015, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <boxGeometry args={[0.005, 0.34, 0.006]} />
+        <meshStandardMaterial color="#14532d" roughness={0.7} />
+      </mesh>
+      {/* petiole / stalk */}
+      <mesh position={[0, 0.005, -0.19]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.008, 0.006, 0.09, 8]} />
+        <meshStandardMaterial color="#365314" roughness={0.75} />
+      </mesh>
+    </group>
+  );
+}
+
 const SHAPES = {
   nail: NailModel, pin: PinModel, coin: CoinModel, foil: FoilModel, wire: WireModel,
   ruler: RulerModel, strip: StripModel, ribbon: RibbonModel, lump: LumpModel,
   slab: SlabModel, frosted: FrostedModel, sheet: SheetModel, block: BlockModel, panel: PanelModel, cup: CupModel,
   fan: FanModel, pendulum: PendulumModel, swing: SwingModel, car: CarModel, top: TopModel, ball: BallModel,
   orb: OrbModel, bulb: BulbModel, candle: CandleModel, spoon: SpoonModel,
+  leaf: LeafModel,
   powder: (p) => <DishModel {...p} kind="powder" />, grains: (p) => <DishModel {...p} kind="grains" />,
   crystal: (p) => <DishModel {...p} kind="crystal" />, liquid: (p) => <DishModel {...p} kind="liquid" />,
   mixture: (p) => <DishModel {...p} kind="mixture" />, specks: (p) => <DishModel {...p} kind="specks" />,
@@ -385,12 +533,14 @@ export function Item3D({ item, position, selected, tested, accent, lift = 0, onE
     g.current.rotation.z += (tz - g.current.rotation.z) * Math.min(1, dt * 8);
   });
   const Shape = SHAPES[item.shape] || LumpModel;
+  // Extra per-item props (e.g. pendulum string length) — safe because
+  // no other lab currently sets `item.props`, so this is additive.
   return (
     <group ref={g} position={position}
       onClick={(e) => { e.stopPropagation(); onExamine(item); }}
       onPointerOver={(e) => { e.stopPropagation(); setHover(true); document.body.style.cursor = "pointer"; }}
       onPointerOut={() => { setHover(false); document.body.style.cursor = "default"; }}>
-      <Shape color={item.color} active={selected} />
+      <Shape color={item.color} active={selected} {...(item.props || {})} />
       {/* base ring on the bench */}
       {(selected || tested) && (
         <mesh position={[0, 0.004, 0]} rotation={[-Math.PI / 2, 0, 0]}>

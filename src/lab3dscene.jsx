@@ -5,7 +5,7 @@
 import React from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
-import { OrbitControls, Environment, Lightformer, ContactShadows } from "@react-three/drei";
+import { OrbitControls, Environment, Lightformer, ContactShadows, Sparkles } from "@react-three/drei";
 import { C } from "./tokens.js";
 
 const { useRef: sUR, useMemo: sUM } = React;
@@ -294,6 +294,31 @@ export function SceneEnv() {
         <Lightformer intensity={0.45} position={[0, 5, 0]} scale={[10, 3, 1]} rotation-x={Math.PI / 2} />
       </Environment>
       <ContactShadows position={[0, 0.005, 0]} opacity={0.55} scale={10} blur={2.0} far={2.4} resolution={1024} />
+      {/* Ambient dust motes drifting in the sunlight — atmospheric depth
+          cue that makes the room feel real, not staged. Small, slow, and
+          bright only where the sunbeam hits. */}
+      <Sparkles
+        count={45}
+        scale={[6, 2.5, 3]}
+        position={[0, 1.4, 0]}
+        size={2.2}
+        speed={0.18}
+        color="#fef3c7"
+        opacity={0.55}
+      />
+      {/* A concentrated beam of warm sunlight from the window side —
+          fake volumetric feel via a subtly tapered cone with additive
+          blending. Sells the "sunlit classroom" mood. */}
+      <mesh position={[2.6, 1.6, 0]} rotation={[0, 0, -0.35]}>
+        <coneGeometry args={[1.2, 3.4, 32, 1, true]} />
+        <meshBasicMaterial
+          color="#fef3c7"
+          transparent
+          opacity={0.05}
+          depthWrite={false}
+          side={2}
+        />
+      </mesh>
       <OrbitControls enablePan={false} minDistance={1.6} maxDistance={5} minPolarAngle={0.2} maxPolarAngle={Math.PI / 2.15} target={[0, 0.25, 0]} enableDamping dampingFactor={0.08} />
     </>
   );
