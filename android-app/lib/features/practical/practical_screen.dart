@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/auth/auth_repository.dart';
 import '../../core/theme/app_tokens.dart';
 import '../viva/viva_screen.dart';
 
@@ -13,7 +14,15 @@ import '../viva/viva_screen.dart';
 /// completedAt }.
 final _completionsStreamProvider =
     StreamProvider<List<Map<String, dynamic>>>((ref) {
-  final uid = FirebaseAuth.instance.currentUser?.uid;
+  // Watch auth rather than reading currentUser once.
+  //
+  // On a cold start this provider can be built before Firebase has finished
+  // restoring the session. A one-shot read saw uid == null, returned an empty
+  // stream, and then never re-ran when the session arrived — so the practical
+  // file stayed empty (or wedged) until the app was restarted. Watching means
+  // the list populates the moment auth is ready.
+  final uid = ref.watch(authStateProvider).valueOrNull?.uid ??
+      FirebaseAuth.instance.currentUser?.uid;
   if (uid == null) return Stream.value(const []);
   return FirebaseFirestore.instance
       .collection('users')
@@ -56,10 +65,57 @@ class PracticalScreen extends ConsumerWidget {
       ),
       body: completions.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => Center(
-          child: Text('Couldn\'t load your practical file.',
-              style: TextStyle(color: scheme.onSurfaceVariant)),
-        ),
+        error: (err, stack) {
+          // Discarding the cause here is how this stayed a mystery: the
+          // student saw a friendly line and nobody ever learned why.
+          debugPrint('practical file load failed: $err');
+          debugPrint('$stack');
+          // A StreamProvider latches its error state. If Firestore errors
+          // once on a cold start — before the auth token is ready, say — the
+          // screen stayed broken for the rest of the session with no way out
+          // but killing the app. Retry re-subscribes.
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.cloud_off_rounded,
+                      size: 40, color: scheme.onSurfaceVariant),
+                  const SizedBox(height: 16),
+                  Text(
+                    "Couldn't load your practical file.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: scheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Your reports are safe — this is just the connection.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 13, color: scheme.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton.icon(
+                    onPressed: () =>
+                        ref.invalidate(_completionsStreamProvider),
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Try again'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: LabSparkTokens.teal600,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 22, vertical: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
         data: (list) {
           if (list.isEmpty) return const _EmptyState();
           return ListView(

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/auth/user_profile.dart';
 import 'labs_catalog.dart';
 import 'models/lab.dart';
+import '../core/auth/auth_repository.dart';
 
 /// Facade over the compile-time lab catalog + Firestore student progress.
 ///
@@ -47,7 +48,15 @@ final labsRepositoryProvider = Provider<LabsRepository>((ref) {
 });
 
 /// Live set of completed lab ids for the signed-in student.
+///
+/// Watches auth so the set is rebuilt once the session is restored. Without
+/// this, a cold start could build the provider before Firebase had restored
+/// the user, `completionsStream()` would read a null uid, and the empty set
+/// would stick for the rest of the session — showing zero completed labs on
+/// Home, in the catalog, and in the viva lab picker despite the reports
+/// existing in Firestore.
 final completionsProvider = StreamProvider<Set<String>>((ref) {
+  ref.watch(authStateProvider);
   return ref.watch(labsRepositoryProvider).completionsStream();
 });
 
