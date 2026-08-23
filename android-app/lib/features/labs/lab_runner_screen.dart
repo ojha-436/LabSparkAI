@@ -124,14 +124,31 @@ class _LabRunnerScreenState extends ConsumerState<LabRunnerScreen> {
                       await _injectBridge();
                       await _sendInit();
                     },
-                    onReceivedError: (_, __, err) {
+                    // Both of these fire for EVERY request the page makes,
+                    // sub-resources included — not just the main navigation.
+                    // The lab page calls our Cloud Run backend, which answers
+                    // 401 because a WebView carries no Firebase ID token, and
+                    // treating that as fatal used to blank a lab that had in
+                    // fact loaded perfectly well. Only a main-frame failure
+                    // means the lab itself is unusable.
+                    onReceivedError: (_, request, err) {
+                      if (!_isFatalRequest(request, url)) {
+                        debugPrint('WebView sub-resource error '
+                            '(${err.type}) on ${request.url}');
+                        return;
+                      }
                       setState(() {
                         _loadError = err.description.isNotEmpty
                             ? err.description
                             : 'Couldn\'t load the lab. Check your internet connection.';
                       });
                     },
-                    onReceivedHttpError: (_, __, err) {
+                    onReceivedHttpError: (_, request, err) {
+                      if (!_isFatalRequest(request, url)) {
+                        debugPrint('WebView sub-resource HTTP '
+                            '${err.statusCode} on ${request.url}');
+                        return;
+                      }
                       setState(() {
                         _loadError =
                             'Server returned ${err.statusCode}. Try again.';
@@ -237,6 +254,28 @@ class _LabRunnerScreenState extends ConsumerState<LabRunnerScreen> {
       };
       window.postToFlutter = (m) => window.LabSparkBridge.emit(m);
     ''');
+  }
+
+  /// Whether a failed request should blank the lab behind an error overlay.
+  ///
+  /// Only the main-frame document qualifies. Sub-resource failures are
+  /// routine here — the lab page calls our Cloud Run backend, which answers
+  /// 401 because a WebView carries no Firebase session — and treating those
+  /// as fatal hid a lab that had loaded perfectly well.
+  ///
+  /// [isForMainFrame] is authoritative when present. When it is null (not
+  /// every platform sets it) fall back to comparing paths against the page we
+  /// actually asked for, so a genuinely dead lab still surfaces an error
+  /// instead of a silent blank screen.
+  static bool _isFatalRequest(WebResourceRequest request, String labUrl) {
+    final mainFrame = request.isForMainFrame;
+    if (mainFrame != null) return mainFrame;
+
+    final failed = request.url;
+    final wanted = Uri.tryParse(labUrl);
+    if (wanted == null) return false;
+    // Query strings carry a cache-busting `v=`, so compare origin + path only.
+    return failed.host == wanted.host && failed.path == wanted.path;
   }
 
   Future<void> _sendInit() async {
