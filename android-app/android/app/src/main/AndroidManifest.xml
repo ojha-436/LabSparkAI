@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- Network for backend + Firebase -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
@@ -6,6 +7,22 @@
     <!-- Voice features (Phase 5) -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+
+    <!-- Agora RTC (live Spark voice). RECORD_AUDIO + MODIFY_AUDIO_SETTINGS
+         above are already what the engine needs most; these are the rest of
+         Agora's required set. No CAMERA — Spark is audio-only. -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+    <uses-permission android:name="android.permission.BLUETOOTH"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+
+    <!-- The Agora RTC plugin's own manifest declares CAMERA and screen-capture
+         permissions because the same SDK also does video. Spark is audio-only
+         (publishCameraTrack: false, video never enabled), so strip them: a
+         school app asking for camera and screen recording it never uses is a
+         Play review flag and a trust problem, not just dead weight. -->
+    <uses-permission android:name="android.permission.CAMERA" tools:node="remove"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" tools:node="remove"/>
 
     <!-- Push notifications (Phase 9) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>

@@ -1,7 +1,7 @@
 {
   "name": "labspark-ai-server",
   "version": "1.0.0",
-  "description": "LabSpark AI backend — Gemini-powered Spark tutor + grader (Cloud Run)",
+  "description": "LabSpark AI backend \u2014 Gemini-powered Spark tutor + grader (Cloud Run)",
   "type": "module",
   "main": "index.js",
   "engines": {
@@ -9,10 +9,13 @@
   },
   "scripts": {
     "start": "node index.js",
-    "dev": "node --watch --env-file=.env index.js"
+    "dev": "node --watch --env-file=.env index.js",
+    "test:agora": "node agora.test.mjs",
+    "smoke:agora": "node --env-file=.env agora.smoke.mjs"
   },
   "dependencies": {
     "@google/genai": "^0.14.0",
+    "agora-token": "^2.0.5",
     "cors": "^2.8.5",
     "express": "^4.19.2",
     "firebase-admin": "^12.7.0",

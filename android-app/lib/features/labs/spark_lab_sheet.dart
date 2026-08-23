@@ -3,9 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
+import '../../core/api/agora_config.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/theme/logo.dart';
 import '../../data/models/lab.dart';
+import '../spark/agora_voice_service.dart';
 import '../spark/spark_conversation.dart';
 import '../spark/spark_repository.dart';
 import '../spark/spark_tts_service.dart';
@@ -16,6 +18,17 @@ import '../spark/spark_tts_service.dart';
 /// persistent [sparkConversationProvider] so the student sees the full
 /// history of what Spark narrated during the lab AND their own Q&A
 /// carries across open/close of the sheet.
+///
+/// Two voice modes, and the older one is never removed:
+///
+///  • **Turn-based (default).** `speech_to_text` → `/api/spark/ask` →
+///    `flutter_tts`. Works offline-ish, no per-minute cost, always available.
+///  • **Live (Agora).** A ConvoAI agent joins an RTC channel and holds a
+///    full-duplex conversation — the student can interrupt mid-sentence.
+///    Gemini is still the brain; Agora owns transport, ASR, TTS and VAD.
+///
+/// Live is offered only when an App ID is compiled in, and any failure to
+/// establish it falls straight back to turn-based rather than dead-ending.
 class SparkLabSheet extends ConsumerStatefulWidget {
   const SparkLabSheet({super.key, required this.lab});
   final Lab lab;
@@ -27,6 +40,10 @@ class _SparkLabSheetState extends ConsumerState<SparkLabSheet> {
   final _controller = TextEditingController();
   final _scroll = ScrollController();
   final _stt = SpeechToText();
+  /// Captured in [initState] rather than read in [dispose] — `ref` is not
+  /// guaranteed usable once disposal has started, and closing the sheet is
+  /// precisely when we need to hang up a live session.
+  late final AgoraVoiceService _voice;
   bool _thinking = false;
   bool _listening = false;
   bool _sttReady = false;
@@ -34,6 +51,7 @@ class _SparkLabSheetState extends ConsumerState<SparkLabSheet> {
   @override
   void initState() {
     super.initState();
+    _voice = ref.read(agoraVoiceServiceProvider);
     _initStt();
     // If this is the very first time the student is opening Spark for
     // this lab, emit a warm proactive greeting. Otherwise pick up the
@@ -51,7 +69,45 @@ class _SparkLabSheetState extends ConsumerState<SparkLabSheet> {
     _controller.dispose();
     _scroll.dispose();
     _stt.stop();
+    // Closing the sheet must end any live session. An orphaned ConvoAI agent
+    // keeps billing per minute until `idle_timeout` fires, so this is a cost
+    // bug, not just a tidiness one. Fire-and-forget: `dispose` can't await,
+    // and the service's stop path is already failure-tolerant.
+    if (_voice.isActive) _voice.stop();
     super.dispose();
+  }
+
+  /// Starts or ends a live conversation.
+  ///
+  /// Starting one silences the turn-based path first — otherwise `flutter_tts`
+  /// and the agent's TTS talk over each other into the same speaker, which
+  /// sounds broken and also feeds Spark's own voice back into the mic.
+  Future<void> _toggleLive() async {
+    HapticFeedback.selectionClick();
+
+    if (_voice.isActive) {
+      await _voice.stop();
+      return;
+    }
+
+    await SparkTts.instance.stop();
+    if (_listening) {
+      await _stt.stop();
+      if (mounted) setState(() => _listening = false);
+    }
+
+    final ok = await _voice.start(
+      labId: widget.lab.id,
+      labTitle: widget.lab.title,
+    );
+
+    if (!ok && mounted) {
+      final reason = _voice.state.value.error ?? 'Live voice is unavailable.';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(reason),
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
   }
 
   Future<void> _initStt() async {
@@ -181,6 +237,18 @@ class _SparkLabSheetState extends ConsumerState<SparkLabSheet> {
     final messages = ref.watch(sparkConversationProvider(widget.lab.id));
     final viewInsets = MediaQuery.of(context).viewInsets.bottom;
 
+    return ValueListenableBuilder<SparkVoiceState>(
+      valueListenable: _voice.state,
+      builder: (context, live, _) => _buildSheet(context, messages, viewInsets, live),
+    );
+  }
+
+  Widget _buildSheet(
+    BuildContext context,
+    List<SparkMessage> messages,
+    double viewInsets,
+    SparkVoiceState live,
+  ) {
     return Padding(
       padding: EdgeInsets.only(bottom: viewInsets),
       child: DraggableScrollableSheet(
@@ -218,7 +286,10 @@ class _SparkLabSheetState extends ConsumerState<SparkLabSheet> {
                   lab: widget.lab,
                   thinking: _thinking,
                   listening: _listening,
+                  live: live,
+                  liveAvailable: agoraConfigured,
                   hasHistory: messages.length > 1,
+                  onToggleLive: _toggleLive,
                   onClose: () => Navigator.of(context).pop(),
                   onClear: () {
                     ref
@@ -241,16 +312,26 @@ class _SparkLabSheetState extends ConsumerState<SparkLabSheet> {
                     },
                   ),
                 ),
-                if (messages.length <= 1)
+                if (messages.length <= 1 && !live.isActive)
                   _SuggestionStrip(lab: widget.lab, onTap: _send),
-                _Composer(
-                  controller: _controller,
-                  enabled: !_thinking,
-                  listening: _listening,
-                  onSend: () => _send(),
-                  onMic: _toggleMic,
-                  sttReady: _sttReady,
-                ),
+                // While live, the composer is replaced rather than merely
+                // disabled: sending text would fire the turn-based Gemini
+                // path and speak over the agent through the same speaker.
+                if (live.isActive)
+                  _LiveVoiceBar(
+                    state: live,
+                    onMute: () => _voice.setMuted(!live.muted),
+                    onEnd: _toggleLive,
+                  )
+                else
+                  _Composer(
+                    controller: _controller,
+                    enabled: !_thinking,
+                    listening: _listening,
+                    onSend: () => _send(),
+                    onMic: _toggleMic,
+                    sttReady: _sttReady,
+                  ),
               ],
             ),
           );
@@ -282,25 +363,40 @@ class _Header extends StatelessWidget {
     required this.lab,
     required this.thinking,
     required this.listening,
+    required this.live,
+    required this.liveAvailable,
     required this.hasHistory,
+    required this.onToggleLive,
     required this.onClose,
     required this.onClear,
   });
   final Lab lab;
   final bool thinking;
   final bool listening;
+  final SparkVoiceState live;
+  final bool liveAvailable;
   final bool hasHistory;
+  final VoidCallback onToggleLive;
   final VoidCallback onClose;
   final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
-    final status = listening
-        ? 'listening…'
-        : (thinking ? 'thinking…' : 'online · your lab guide');
-    final statusColor = listening
-        ? LabSparkTokens.rose600
-        : (thinking ? LabSparkTokens.amber500 : LabSparkTokens.teal600);
+    // The live session outranks the turn-based indicators — when it's up,
+    // that IS the state the student cares about.
+    final (String status, Color statusColor) = switch (live.status) {
+      SparkVoiceStatus.starting => ('connecting…', LabSparkTokens.amber500),
+      SparkVoiceStatus.connecting => ('waking Spark…', LabSparkTokens.amber500),
+      SparkVoiceStatus.live when live.sparkSpeaking =>
+        ('live · Spark is speaking', LabSparkTokens.indigo600),
+      SparkVoiceStatus.live when live.studentSpeaking =>
+        ('live · listening to you', LabSparkTokens.rose600),
+      SparkVoiceStatus.live => ('live · just start talking', LabSparkTokens.indigo600),
+      SparkVoiceStatus.ending => ('ending…', LabSparkTokens.slate500),
+      _ when listening => ('listening…', LabSparkTokens.rose600),
+      _ when thinking => ('thinking…', LabSparkTokens.amber500),
+      _ => ('online · your lab guide', LabSparkTokens.teal600),
+    };
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 6, 6, 12),
       child: Row(
@@ -337,7 +433,20 @@ class _Header extends StatelessWidget {
               ],
             ),
           ),
-          if (hasHistory)
+          // Hidden entirely when no App ID is compiled in — better than a
+          // button whose only possible outcome is an error.
+          if (liveAvailable)
+            IconButton(
+              onPressed: onToggleLive,
+              icon: Icon(
+                live.isActive
+                    ? Icons.graphic_eq_rounded
+                    : Icons.record_voice_over_outlined,
+                color: live.isActive ? LabSparkTokens.indigo600 : null,
+              ),
+              tooltip: live.isActive ? 'End live voice' : 'Talk live to Spark',
+            ),
+          if (hasHistory && !live.isActive)
             IconButton(
               onPressed: onClear,
               icon: const Icon(Icons.delete_outline_rounded),
@@ -698,6 +807,163 @@ class _MicButton extends StatelessWidget {
             size: 22,
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Replaces the text composer while an Agora live session is up.
+///
+/// There is no send button and no text field on purpose: during a live
+/// session the student just talks. The only controls that make sense are
+/// mute and hang up.
+class _LiveVoiceBar extends StatelessWidget {
+  const _LiveVoiceBar({
+    required this.state,
+    required this.onMute,
+    required this.onEnd,
+  });
+
+  final SparkVoiceState state;
+  final VoidCallback onMute;
+  final VoidCallback onEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final connecting = state.status == SparkVoiceStatus.starting ||
+        state.status == SparkVoiceStatus.connecting;
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+        decoration: BoxDecoration(
+          color: scheme.surface,
+          border: Border(top: BorderSide(color: scheme.outlineVariant)),
+        ),
+        child: Row(
+          children: [
+            _VoiceOrb(
+              speaking: state.sparkSpeaking,
+              connecting: connecting,
+              muted: state.muted,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    connecting
+                        ? 'Connecting to Spark…'
+                        : (state.muted ? 'Mic off' : 'Live · talk any time'),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14.5,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    connecting
+                        ? 'Setting up the voice line'
+                        : 'You can interrupt Spark mid-sentence',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: connecting ? null : onMute,
+              icon: Icon(
+                state.muted ? Icons.mic_off_rounded : Icons.mic_rounded,
+                color: state.muted
+                    ? LabSparkTokens.rose600
+                    : scheme.onSurfaceVariant,
+              ),
+              tooltip: state.muted ? 'Unmute' : 'Mute',
+            ),
+            const SizedBox(width: 4),
+            Material(
+              color: LabSparkTokens.rose600,
+              shape: const CircleBorder(),
+              child: InkWell(
+                onTap: onEnd,
+                customBorder: const CircleBorder(),
+                child: const SizedBox(
+                  width: 46,
+                  height: 46,
+                  child: Icon(Icons.call_end_rounded,
+                      color: Colors.white, size: 22),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Pulses while Spark is actually speaking — driven by Agora's volume
+/// indication on the agent's uid, so it tracks real audio rather than
+/// guessing from turn state.
+class _VoiceOrb extends StatelessWidget {
+  const _VoiceOrb({
+    required this.speaking,
+    required this.connecting,
+    required this.muted,
+  });
+
+  final bool speaking;
+  final bool connecting;
+  final bool muted;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = muted
+        ? LabSparkTokens.slate400
+        : (speaking ? LabSparkTokens.indigo600 : LabSparkTokens.teal600);
+
+    if (connecting) {
+      return const SizedBox(
+        width: 42,
+        height: 42,
+        child: Center(
+          child: SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(strokeWidth: 2.4),
+          ),
+        ),
+      );
+    }
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      width: 42,
+      height: 42,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        boxShadow: speaking
+            ? [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.45),
+                  blurRadius: 16,
+                  spreadRadius: 3,
+                ),
+              ]
+            : null,
+      ),
+      child: Icon(
+        muted ? Icons.mic_off_rounded : Icons.auto_awesome_rounded,
+        color: Colors.white,
+        size: 20,
       ),
     );
   }

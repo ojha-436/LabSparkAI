@@ -46,6 +46,9 @@ android {
             signingConfig signingConfigs.debug
             minifyEnabled true
             shrinkResources true
+            // Agora's native JNI bridge must survive R8 — see proguard-rules.pro.
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'),
+                          'proguard-rules.pro'
         }
     }
 }

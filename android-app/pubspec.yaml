@@ -24,7 +24,6 @@ dependencies:
   # UI + design system
   google_fonts: ^6.2.1
   flutter_svg: ^2.0.10+1
-  cached_network_image: ^3.4.1
   shimmer: ^3.0.0
 
   # WebView — hosts the R3F 3D lab scenes served from Firebase Hosting.
@@ -35,6 +34,13 @@ dependencies:
   flutter_tts: ^4.2.0
   speech_to_text: ^7.0.0
   permission_handler: ^11.3.1
+
+  # Agora Conversational AI — live full-duplex voice for Spark. The Agora
+  # RTC engine carries mic audio up and the agent's TTS audio back down;
+  # the agent itself is started/stopped server-side via the ConvoAI REST
+  # API. The on-device flutter_tts + speech_to_text path above is KEPT as
+  # the fallback when a live session can't be established.
+  agora_rtc_engine: ^6.6.3
 
   # PDF export for the CBSE practical file.
   pdf: ^3.11.1

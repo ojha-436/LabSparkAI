@@ -9,6 +9,7 @@ import { createServer } from "http";
 import { WebSocketServer } from "ws";
 import admin from "firebase-admin";
 import { GoogleGenAI, Modality } from "@google/genai";
+import { registerAgoraRoutes, agoraConfigured } from "./agora.js";
 
 const PORT = process.env.PORT || 8787;
 const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
@@ -175,8 +176,20 @@ async function generate({
 
 /* Health check (Cloud Run + uptime probes) */
 app.get("/health", (_req, res) => {
-  res.json({ ok: true, model: MODEL, geminiConfigured: Boolean(ai) });
+  res.json({
+    ok: true,
+    model: MODEL,
+    geminiConfigured: Boolean(ai),
+    agoraConfigured,
+  });
 });
+
+/* ── Agora Conversational AI (live Spark voice) ──────────────────────────
+   Mounted here so it inherits the requireAuth + rateLimit middleware
+   already applied to /api above. Spark's persona is passed straight
+   through, so the live voice tutor and the text tutor are the same
+   character. Gemini stays the brain; Agora owns the voice pipeline. */
+registerAgoraRoutes(app, SPARK_SYSTEM);
 
 /* ── Free-form question from the "Ask Spark" box ── */
 app.post("/api/spark/ask", async (req, res) => {
