@@ -9,6 +9,7 @@ import '../../core/theme/logo.dart';
 import '../../data/models/lab.dart';
 import '../spark/agora_transcript.dart';
 import '../spark/agora_voice_service.dart';
+import '../spark/spark_language.dart';
 import '../spark/spark_conversation.dart';
 import '../spark/spark_repository.dart';
 import '../spark/spark_tts_service.dart';
@@ -103,6 +104,7 @@ class _SparkLabSheetState extends ConsumerState<SparkLabSheet> {
     final ok = await _voice.start(
       labId: widget.lab.id,
       labTitle: widget.lab.title,
+      language: ref.read(sparkLanguageProvider),
     );
 
     if (!ok && mounted) {

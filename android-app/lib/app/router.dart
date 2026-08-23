@@ -19,6 +19,8 @@ import '../features/profile/profile_screen.dart';
 import '../features/profile/settings_screen.dart';
 import '../features/shell/home_shell.dart';
 import '../features/spark/ask_spark_screen.dart';
+import '../data/models/lab.dart';
+import '../features/viva/viva_screen.dart';
 
 /// Whether the user has seen the onboarding carousel yet.
 class OnboardingSeen extends Notifier<bool> {
@@ -157,6 +159,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
         ],
+      ),
+      // Deliberately a sibling of the ShellRoute, not a child: an exam in
+      // progress must not have the bottom nav sitting there to tap out of by
+      // accident. Full-screen, with its own confirm-before-exit.
+      GoRoute(
+        path: '/viva',
+        builder: (context, state) => VivaScreen(lab: state.extra as Lab?),
       ),
     ],
   );

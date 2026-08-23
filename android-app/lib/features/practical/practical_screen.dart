@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/theme/app_tokens.dart';
+import '../viva/viva_screen.dart';
 
 /// Streams the signed-in student's completions in reverse chronological
 /// order. Each entry is a Firestore map with { id, title, grade, score,
@@ -66,6 +67,10 @@ class PracticalScreen extends ConsumerWidget {
             children: [
               _HeaderSummary(count: list.length),
               const SizedBox(height: 8),
+              if (vivaAvailable) ...[
+                const _VivaCard(),
+                const SizedBox(height: 8),
+              ],
               for (final entry in list)
                 _ReportCard(
                   entry: entry,
@@ -295,3 +300,73 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
+
+
+/// Entry point for the viva voce mock exam.
+///
+/// Placed at the top of the practical file rather than on Home: this is the
+/// screen a student opens when they are thinking about the practical exam,
+/// and the reports listed below it are exactly the labs they can be examined
+/// on. Home is for discovery; this is where intent already exists.
+class _VivaCard extends StatelessWidget {
+  const _VivaCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: LabSparkTokens.indigo600.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: () => context.push('/viva'),
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: LabSparkTokens.indigo600.withValues(alpha: 0.22),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: LabSparkTokens.indigo600,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(Icons.record_voice_over_rounded,
+                    color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Practise your viva',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                        )),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Six spoken questions from an AI examiner, marked out of 10',
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: 1.35,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded,
+                  color: LabSparkTokens.indigo600),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

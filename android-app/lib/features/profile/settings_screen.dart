@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme/app_tokens.dart';
+import '../spark/spark_language.dart';
 
 /// User preferences. Stored in SharedPreferences for now — sync to Firestore
 /// in a later phase.
@@ -66,6 +67,7 @@ class SettingsScreen extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
     final narration = ref.watch(narrationEnabledProvider);
     final haptics = ref.watch(hapticsEnabledProvider);
+    final language = ref.watch(sparkLanguageProvider);
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -93,6 +95,39 @@ class SettingsScreen extends ConsumerWidget {
             value: ThemeMode.dark,
             group: themeMode,
             onChanged: (m) => ref.read(themeModeProvider.notifier).set(m),
+          ),
+          _SectionHeader('SPARK VOICE'),
+          // A radio group, not a dropdown: three options fit on screen, and
+          // showing all of them makes Hindi/Hinglish discoverable to the
+          // students who need it most — a collapsed picker hides it.
+          RadioGroup<SparkLanguage>(
+            groupValue: language,
+            onChanged: (v) {
+              if (v != null) ref.read(sparkLanguageProvider.notifier).set(v);
+            },
+            child: Column(
+              children: [
+                for (final lang in SparkLanguage.values)
+                  RadioListTile<SparkLanguage>(
+                    value: lang,
+                    title: Text(lang.label),
+                    subtitle: Text(lang.blurb),
+                    activeColor: LabSparkTokens.indigo600,
+                  ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+            child: Text(
+              'Applies to live voice conversations. Scientific terms stay in '
+              'English in every language, so they match your textbook.',
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.4,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
           ),
           _SectionHeader('EXPERIENCE'),
           SwitchListTile(

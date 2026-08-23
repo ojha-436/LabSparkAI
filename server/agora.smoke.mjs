@@ -34,13 +34,18 @@ const agentUid = Number(process.env.AGORA_AGENT_UID || 1000);
    RTC+RTM agent token rather than a hand-rolled RTC-only one. */
 const agentToken = mintAgentToken(channel, agentUid);
 
+/* SMOKE_MODE=viva and SMOKE_LANG=hi-IN let one script exercise every persona
+   and language combination against the live API. */
 const payload = buildJoinPayload({
   channel, uid, agentToken,
   lab: "Solubility of Salts",
   sparkSystem: "You are Spark, a friendly CBSE science tutor.",
   agentName: `spark-smoke-${Date.now()}`,
+  mode: process.env.SMOKE_MODE || "tutor",
+  languageKey: process.env.SMOKE_LANG || undefined,
 });
 
+console.log(`mode: ${process.env.SMOKE_MODE || "tutor"}  lang: ${payload.properties.asr.params.language}`);
 console.log(`channel: ${channel}\nasr: ${payload.properties.asr.vendor}/${payload.properties.asr.params.model}` +
             `  tts: ${payload.properties.tts.vendor}/${payload.properties.tts.params.model}` +
             `  llm: ${payload.properties.llm.params.model}\n`);

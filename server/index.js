@@ -307,6 +307,83 @@ app.post("/api/insights", async (req, res) => {
   }
 });
 
+/* ── Score a completed viva voce ───────────────────────────────────────────
+   The client sends the RTM transcript of the oral exam. Gemini grades it the
+   way a CBSE examiner would: on what the student actually said, not on
+   whether they used textbook wording.
+
+   Marked out of 10 because that is what CBSE allots to viva voce in the
+   practical exam — a score out of 10 means something to a student, a
+   percentage does not. */
+app.post("/api/viva/score", async (req, res) => {
+  if (!ensureReady(res)) return;
+  const { title, cls, subject, chapter, turns } = req.body || {};
+
+  if (!Array.isArray(turns) || turns.length === 0) {
+    return res.status(400).json({ error: "No viva transcript to score." });
+  }
+
+  /* Only settled turns, and cap the volume: a long viva is still only a few
+     hundred words, so anything beyond this is a client bug or an attempt to
+     run up the bill. */
+  const script = turns
+    .filter((t) => t && typeof t.text === "string" && t.text.trim())
+    .slice(0, 60)
+    .map((t) => `${t.speaker === "spark" ? "EXAMINER" : "STUDENT"}: ${t.text.trim().slice(0, 500)}`)
+    .join("\n");
+
+  if (!script) return res.status(400).json({ error: "Transcript was empty." });
+
+  try {
+    const prompt =
+      `You are marking a CBSE class ${cls || ""} ${subject || ""} practical VIVA VOCE ` +
+      `on "${title || "a practical"}"${chapter ? ` (chapter: ${chapter})` : ""}.\n\n` +
+      `Below is the verbatim transcript of the oral exam. It came from speech ` +
+      `recognition, so expect mis-transcriptions of technical words — judge the ` +
+      `student on evident understanding, NOT on exact terminology or grammar. ` +
+      `A student who explains the idea correctly in their own words scores full marks.\n\n` +
+      `TRANSCRIPT:\n${script}\n\n` +
+      `Return ONLY JSON of this exact shape:\n` +
+      `{"score":<0-10 integer>,"band":"<Needs work|Good|Excellent>",` +
+      `"summary":"<2 sentences, warm, addressed to the student as 'you'>",` +
+      `"questions":[{"question":"<what the examiner asked, condensed>",` +
+      `"answered":<true|false>,"verdict":"<correct|partial|incorrect|no answer>",` +
+      `"note":"<one short sentence of specific feedback>"}],` +
+      `"strengths":["<short phrase>"],"improve":["<short, actionable phrase>"]}\n\n` +
+      `Bands: 0-4 "Needs work", 5-7 "Good", 8-10 "Excellent". ` +
+      `Include one entry in "questions" per question the examiner actually asked. ` +
+      `Give at most 3 strengths and at most 3 improvements. ` +
+      `Be encouraging but honest — this is exam practice, and false praise costs them marks later.`;
+
+    const raw = await generate({
+      prompt,
+      temperature: 0.3,
+      maxOutputTokens: 1200,
+      json: true,
+      thinking: -1,
+    });
+
+    let parsed;
+    try { parsed = JSON.parse(raw); } catch { parsed = null; }
+    if (!parsed || typeof parsed.score !== "number") {
+      return res.status(502).json({ error: "Could not score the viva." });
+    }
+
+    const score = Math.max(0, Math.min(10, Math.round(parsed.score)));
+    res.json({
+      score,
+      band: parsed.band || (score >= 8 ? "Excellent" : score >= 5 ? "Good" : "Needs work"),
+      summary: parsed.summary || "",
+      questions: Array.isArray(parsed.questions) ? parsed.questions.slice(0, 10) : [],
+      strengths: Array.isArray(parsed.strengths) ? parsed.strengths.slice(0, 3) : [],
+      improve: Array.isArray(parsed.improve) ? parsed.improve.slice(0, 3) : [],
+    });
+  } catch (err) {
+    console.error("viva score error:", err);
+    res.status(502).json({ error: "Gemini request failed" });
+  }
+});
+
 /* ── Auto-generate exam-style questions for a lab (worksheet + answer key) ── */
 app.post("/api/worksheet", async (req, res) => {
   if (!ensureReady(res)) return;

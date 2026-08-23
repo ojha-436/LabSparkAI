@@ -71,6 +71,53 @@ const LLM_MODEL = process.env.AGORA_LLM_MODEL || process.env.GEMINI_MODEL || "ge
    credentials, so we ship no Deepgram/MiniMax keys of our own. Vendor and
    voice stay env-overridable: if the console exposes a different managed
    vendor, it's a Cloud Run env change, not a redeploy of new code. */
+/* ── Languages ───────────────────────────────────────────────────────────
+   Deliberately does NOT switch the TTS voice_id per language. MiniMax's
+   speech-2.6 models are multilingual and infer the language from the text,
+   and inventing voice ids we have not verified is how you get a 400 on a
+   student's first tap. Override per language with AGORA_TTS_VOICE_<KEY> if
+   a dedicated voice is ever confirmed. */
+const LANGUAGES = {
+  "en-IN": {
+    label: "English",
+    asr: "en-IN",
+    turn: "en-US",
+    instruction:
+      "Speak in clear, simple Indian English. Keep sentences short.",
+  },
+  "hi-IN": {
+    label: "हिंदी",
+    asr: "hi-IN",
+    turn: "hi-IN",
+    instruction:
+      "Reply in simple conversational Hindi (Devanagari when writing). Keep " +
+      "the standard scientific terms in English — students see 'litmus', " +
+      "'solubility' and 'circuit' in their NCERT textbook, so translating " +
+      "them would confuse rather than help.",
+  },
+  hinglish: {
+    label: "Hinglish",
+    asr: "en-IN",
+    turn: "en-US",
+    instruction:
+      "Reply in natural Hinglish — the everyday Hindi-English mix an Indian " +
+      "classroom actually uses. Keep every scientific term in English. Do " +
+      "not translate technical vocabulary.",
+  },
+};
+const DEFAULT_LANGUAGE = process.env.AGORA_DEFAULT_LANGUAGE || "en-IN";
+
+function languageFor(key) {
+  const lang = LANGUAGES[key] || LANGUAGES[DEFAULT_LANGUAGE] || LANGUAGES["en-IN"];
+  const envKey = `AGORA_TTS_VOICE_${String(key).toUpperCase().replace(/-/g, "_")}`;
+  return { ...lang, ttsVoice: process.env[envKey] || null };
+}
+
+export const supportedLanguages = Object.entries(LANGUAGES).map(([k, v]) => ({
+  key: k,
+  label: v.label,
+}));
+
 const ASR_VENDOR = process.env.AGORA_ASR_VENDOR || "deepgram";
 const ASR_LANGUAGE = process.env.AGORA_ASR_LANGUAGE || "en-IN";
 /* Managed mode supplies the provider CREDENTIALS only — the endpoint url and
@@ -94,6 +141,27 @@ const TTS_VOICE = process.env.AGORA_TTS_VOICE || "English_captivating_female1";
    agent is speaking — and therefore cannot interrupt it. Matches the
    official agent-quickstart-android reference server. */
 const TURN_DETECTION_LANGUAGE = process.env.AGORA_TURN_LANGUAGE || "en-US";
+
+/* ── Barge-in tuning ────────────────────────────────────────────────────
+   How long the student must speak BEFORE the agent stops. 160ms cuts in
+   almost instantly but also trips on a cough or a classroom door; 300-500ms
+   is the guidance for noisy rooms. A school lab is noisy, so we sit in
+   between and let it be tuned per deployment. */
+const INTERRUPT_DURATION_MS = Number(process.env.AGORA_INTERRUPT_MS || 260);
+/* Same idea, but specifically while the agent is mid-sentence. Higher than
+   the above so ordinary room noise doesn't chop Spark off, while a genuine
+   "wait, why?" still lands. */
+const SPEAKING_INTERRUPT_MS = Number(process.env.AGORA_SPEAKING_INTERRUPT_MS || 380);
+/* Buffer so the first syllable of the student's question isn't clipped. The
+   clipped-first-word problem is what makes an interruption feel like it was
+   misheard. */
+const PREFIX_PADDING_MS = Number(process.env.AGORA_PREFIX_PADDING_MS || 600);
+/* How long a pause counts as "the student has finished". Too low and Spark
+   answers a half-question; too high and every exchange feels laggy.
+   Deliberately generous: a 13-year-old thinking aloud pauses mid-sentence. */
+const SILENCE_DURATION_MS = Number(process.env.AGORA_SILENCE_MS || 620);
+const MAX_WAIT_MS = Number(process.env.AGORA_MAX_WAIT_MS || 3000);
+const SPEECH_THRESHOLD = Number(process.env.AGORA_SPEECH_THRESHOLD || 0.5);
 /* "chorus" is the agent-side audio scenario the reference uses: least
    processing, lowest latency, which is what barge-in needs. */
 const AGENT_AUDIO_SCENARIO = process.env.AGORA_AGENT_AUDIO_SCENARIO || "chorus";
@@ -196,7 +264,113 @@ function validUid(uid) {
  * the route sends. Keeping two copies is how `asr.params.url` went missing and
  * cost a round of 400s — one definition, one place to fix.
  */
-export function buildJoinPayload({ channel, uid, agentToken, lab, sparkSystem, agentName }) {
+/* ── How Spark behaves when it is cut off ────────────────────────────────
+   Barge-in that merely stops the audio is only half the feature. The
+   complaint that matters is "it stops, then answers as if the last two
+   minutes never happened." That is a prompt problem, not a transport
+   problem: the engine cancels the turn, the cancelled text stays in history
+   as a fragment, and without instruction the model treats the new question
+   as a fresh conversation.
+
+   `max_history` keeps the thread available; these rules tell the model to
+   USE it — acknowledge the cut-in, answer the new question, then stitch back
+   to the thing it was mid-way through explaining. */
+const INTERRUPTION_RULES = `
+════════ BEING INTERRUPTED ════════
+The student can and will cut you off mid-sentence. That is welcome, not rude.
+
+When it happens:
+  • Stop immediately. Do not finish the sentence you were on.
+  • Do NOT restart your previous explanation from the beginning, and do not
+    apologise or narrate the interruption ("Sorry, you interrupted me").
+  • Answer the NEW question first, in one or two spoken sentences.
+  • Then reconnect to what you were explaining, briefly, so the thread is not
+    lost — e.g. "…and that's why the bulb glowed in the step we were on."
+  • If their cut-in was a short signal rather than a question ("wait", "stop",
+    "slower", "I don't get it"), do not launch into new material. Ask one
+    short clarifying question and wait.
+  • Never repeat a sentence the student already heard before cutting in.
+
+Treat the whole conversation as one continuous thought, not a series of
+independent questions. Refer back to what the student said earlier when it
+helps them connect ideas.
+`.trim();
+
+const SPOKEN_STYLE_RULES = `
+════════ YOU ARE SPEAKING, NOT WRITING ════════
+  • One or two short sentences per reply. No lists, no markdown, no headings.
+  • Ask one question at a time, then stop and wait for the answer.
+  • Read numbers and symbols the way a teacher says them aloud
+    ("H two O", "twenty five degrees"), never as written notation.
+  • Never say "as shown above" or "see the diagram" — the student is
+    listening, not reading.
+`.trim();
+
+/* ── The examiner ────────────────────────────────────────────────────────
+   A viva is not tutoring, and the failure mode is a "chatbot playing
+   dress-up": an examiner that helps, praises, and hints its way through.
+   These rules exist to stop that, because an examiner that helps is useless
+   as practice for one that does not. */
+const VIVA_RULES = `
+════════ YOU ARE CONDUCTING A VIVA VOCE ════════
+You are the external examiner for a CBSE practical examination. You are
+courteous and calm, but you are NOT a tutor right now.
+
+Rules you must not break:
+  • Ask ONE question. Then stop and wait, however long the silence lasts.
+  • Do NOT give the answer, do not hint, do not lead, do not correct.
+  • Do NOT say whether an answer was right or wrong. Move on with a neutral
+    acknowledgement — "Thank you", "Next question", "I see."
+  • Never praise ("Great job!", "Exactly!"). Praise tells them the answer.
+  • If an answer is incomplete, you may ask ONE probing follow-up
+    ("And why does that happen?") — then move on regardless.
+  • If the student says they do not know, accept it and move to the next
+    question without teaching.
+  • Ask exactly SIX questions in total, then say: "That concludes the viva.
+    Thank you." and stop.
+  • Progress from recall, to reasoning, to one application question — the
+    order a real examiner uses.
+  • Keep every question to one spoken sentence.
+
+Feedback comes after the viva ends, from the scoring step — not from you.
+`.trim();
+
+/**
+ * Composes the system prompt for one session.
+ *
+ * @param sparkSystem  the shared Spark persona from index.js
+ * @param mode         "tutor" | "viva"
+ * @param lab          the experiment under discussion
+ * @param language     entry from the LANGUAGES table
+ */
+function personaFor({ sparkSystem, mode, lab, language }) {
+  const parts = [sparkSystem];
+
+  if (mode === "viva") {
+    parts.push(VIVA_RULES);
+    parts.push(`The viva is on this practical: ${lab}.`);
+  } else {
+    parts.push(`The student is working on: ${lab}.`);
+    parts.push(INTERRUPTION_RULES);
+  }
+
+  parts.push(SPOKEN_STYLE_RULES);
+  parts.push(`════════ LANGUAGE ════════\n${language.instruction}`);
+
+  if (mode !== "viva") {
+    parts.push("Greet them warmly in a single sentence when the session starts.");
+  }
+
+  return parts.join("\n\n");
+}
+
+export function buildJoinPayload({
+  channel, uid, agentToken, lab, sparkSystem, agentName,
+  mode = "tutor",
+  languageKey = DEFAULT_LANGUAGE,
+}) {
+  const language = languageFor(languageKey);
+  const isViva = mode === "viva";
   return {
     /* Must be unique per agent instance — Agora rejects a repeat. */
     name: agentName,
@@ -209,9 +383,34 @@ export function buildJoinPayload({ channel, uid, agentToken, lab, sparkSystem, a
       remote_rtc_uids: [String(uid)],
       enable_string_uid: false,
       idle_timeout: IDLE_TIMEOUT,
-      /* Lets the engine segment turns, which is what makes a mid-sentence
-         barge-in resolvable rather than garbled. */
-      turn_detection: { language: TURN_DETECTION_LANGUAGE },
+      /* Turn detection is where "does interruption feel right" actually
+         lives. `end_of_speech.mode: "semantic"` is the important one: it
+         switches the engine from raw silence-timing to AIVAD, so it waits
+         for a *complete thought* rather than the first 300ms gap. That is
+         the difference between Spark answering a half-question and Spark
+         letting a student finish thinking aloud. */
+      turn_detection: {
+        language: language.turn,
+        mode: "default",
+        config: {
+          speech_threshold: SPEECH_THRESHOLD,
+          start_of_speech: {
+            mode: "vad",
+            vad_config: {
+              interrupt_duration_ms: INTERRUPT_DURATION_MS,
+              speaking_interrupt_duration_ms: SPEAKING_INTERRUPT_MS,
+              prefix_padding_ms: PREFIX_PADDING_MS,
+            },
+          },
+          end_of_speech: {
+            mode: "semantic",
+            semantic_config: {
+              silence_duration_ms: SILENCE_DURATION_MS,
+              max_wait_ms: MAX_WAIT_MS,
+            },
+          },
+        },
+      },
       /* enable_rtm is the switch that turns on transcripts AND agent-state
          events. Everything the UI shows about who is speaking flows from it. */
       advanced_features: { enable_rtm: true },
@@ -227,7 +426,7 @@ export function buildJoinPayload({ channel, uid, agentToken, lab, sparkSystem, a
         params: {
           url: ASR_URL,
           model: ASR_MODEL,
-          language: ASR_LANGUAGE,
+          language: language.asr,
         },
       },
       llm: {
@@ -237,17 +436,15 @@ export function buildJoinPayload({ channel, uid, agentToken, lab, sparkSystem, a
         system_messages: [
           {
             role: "system",
-            content:
-              sparkSystem +
-              `\nThe student is working on: ${lab}. ` +
-              `You are speaking OUT LOUD, not writing. Keep every reply to one or ` +
-              `two short spoken sentences — no lists, no markdown, no headings. ` +
-              `Ask one question at a time and wait. Greet them warmly in a single ` +
-              `sentence when the session starts.`,
+            content: personaFor({ sparkSystem, mode, lab, language }),
           },
         ],
-        greeting_message: `Hi! I'm Spark. Ready to explore ${lab} together?`,
-        failure_message: "Sorry, I didn't catch that — could you say it again?",
+        greeting_message: isViva
+          ? `Good day. This is your viva voce for ${lab}. I will ask you six questions. Let's begin — first question.`
+          : `Hi! I'm Spark. Ready to explore ${lab} together?`,
+        failure_message: isViva
+          ? "Could you repeat your answer, please?"
+          : "Sorry, I didn't catch that — could you say it again?",
         max_history: LLM_MAX_HISTORY,
         params: {
           model: LLM_MODEL,
@@ -262,7 +459,7 @@ export function buildJoinPayload({ channel, uid, agentToken, lab, sparkSystem, a
         params: {
           url: TTS_URL,
           model: TTS_MODEL,
-          voice_setting: { voice_id: TTS_VOICE },
+          voice_setting: { voice_id: language.ttsVoice || TTS_VOICE },
         },
       },
     },
@@ -286,7 +483,7 @@ export function registerAgoraRoutes(app, sparkSystem) {
       });
     }
 
-    const { channel, uid, experiment } = req.body || {};
+    const { channel, uid, experiment, mode, language } = req.body || {};
     if (!validChannel(channel)) return res.status(400).json({ error: "Invalid channel." });
     if (!validUid(uid)) return res.status(400).json({ error: "Invalid uid." });
 
@@ -314,8 +511,14 @@ export function registerAgoraRoutes(app, sparkSystem) {
        retry of the same channel after a failure. */
     const agentName = `spark-${uid}-${Date.now()}`;
 
+    const sessionMode = mode === "viva" ? "viva" : "tutor";
+    const languageKey =
+      typeof language === "string" && LANGUAGES[language] ? language : DEFAULT_LANGUAGE;
+
     const payload = buildJoinPayload({
       channel, uid, agentToken, lab, sparkSystem, agentName,
+      mode: sessionMode,
+      languageKey,
     });
 
     try {
@@ -345,7 +548,10 @@ export function registerAgoraRoutes(app, sparkSystem) {
         return res.status(502).json({ error: "Agora did not return an agent id." });
       }
 
-      console.log(`[agora] agent ${agentId} joined ${channel} for uid ${req.uid}`);
+      console.log(
+        `[agora] agent ${agentId} joined ${channel} for uid ${req.uid} ` +
+        `(mode=${sessionMode}, lang=${languageKey})`
+      );
       res.json({
         agentId,
         channel,
@@ -356,6 +562,8 @@ export function registerAgoraRoutes(app, sparkSystem) {
            live transcripts and agent-state events. */
         rtmToken,
         rtmUserId,
+        mode: sessionMode,
+        language: languageKey,
       });
     } catch (err) {
       console.error("[agora] join error:", err);

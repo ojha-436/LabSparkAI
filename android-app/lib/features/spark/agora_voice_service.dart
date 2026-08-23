@@ -11,6 +11,7 @@ import 'agora_self_speech_filter.dart';
 import 'agora_session_repository.dart';
 import 'agora_rtm_service.dart';
 import 'agora_transcript.dart';
+import 'spark_language.dart';
 
 /// Lifecycle of one live Spark conversation.
 enum SparkVoiceStatus {
@@ -231,7 +232,12 @@ class AgoraVoiceService {
   ///
   /// Returns true if the session went live. On false the caller should keep
   /// using the on-device voice path — [state] holds a student-readable reason.
-  Future<bool> start({required String labId, required String labTitle}) async {
+  Future<bool> start({
+    required String labId,
+    required String labTitle,
+    SparkVoiceMode mode = SparkVoiceMode.tutor,
+    SparkLanguage language = SparkLanguage.english,
+  }) async {
     if (!agoraConfigured) {
       _set(const SparkVoiceState(
         status: SparkVoiceStatus.error,
@@ -257,7 +263,12 @@ class AgoraVoiceService {
     try {
       final engine = await _ensureEngine();
 
-      final session = await _sessions.start(labId: labId, labTitle: labTitle);
+      final session = await _sessions.start(
+        labId: labId,
+        labTitle: labTitle,
+        mode: mode,
+        language: language,
+      );
       _session = session;
 
       _agentJoined = Completer<void>();
@@ -437,10 +448,17 @@ class AgoraVoiceService {
     }
   }
 
+  /// The last completed session's transcript, kept after teardown.
+  ///
+  /// [stop] clears live state, but a viva has to be scored *after* it ends —
+  /// so the turns are stashed here rather than lost with the session.
+  List<TranscriptTurn> lastTranscript = const [];
+
   /// Ends the session: leave the channel, then stop the agent so we aren't
   /// billed for an idle one.
   Future<void> stop() async {
     if (_session == null && _engine == null) return;
+    lastTranscript = List<TranscriptTurn>.of(state.value.transcript);
     _set(state.value.copyWith(status: SparkVoiceStatus.ending));
     await _teardown();
     _set(const SparkVoiceState());

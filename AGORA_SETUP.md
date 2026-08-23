@@ -306,6 +306,121 @@ Ported from [AgoraIO-Conversational-AI/agent-quickstart-android](https://github.
 `AgoraConversationSessionManager.kt`, and the join payload in
 `server/app/agora_client.py`.
 
+## Viva voce mock exam
+
+A spoken CBSE practical viva. An examiner persona asks six questions aloud,
+the student answers by voice, and the transcript is marked out of 10 — the
+marks CBSE actually allots to viva voce.
+
+### Where it lives, and why
+
+| Entry | Placement | Reasoning |
+|---|---|---|
+| **Primary** | Card at the top of **Practical file** | This is the exam-prep surface. The reports listed below it are exactly the labs a student can be examined on, and intent already exists when they open this screen. |
+| **Contextual** | Tappable next-step on **Lab complete** | The moment the practical is freshest is the best time to be questioned on it. Deliberately *not* a third button — "View report" stays the single primary action. |
+| Not on Home | — | Home is discovery, not task. Its 2×2 quick-action grid is full, and a 5th tile breaks the rhythm. |
+| Not a new tab | — | Bottom nav is capped at 5 items and already has 5. |
+| Not a bottom sheet | — | A swipe-dismissable sheet can drop an exam mid-answer. |
+
+The route `/viva` is a **sibling of the ShellRoute, not a child**, so the
+bottom nav is absent during an exam and cannot be tapped by accident. It has
+its own confirm-before-exit on both the close button and the system back
+gesture.
+
+### Flow
+
+`pick → brief → live → scoring → result`, with a `failed` branch that always
+offers a retry.
+
+The **brief** step is not filler. The examiner deliberately refuses to hint,
+confirm, or praise, and without being told that first, a student reads it as
+the app being broken rather than as realistic practice.
+
+### Design decisions worth keeping
+
+- Questions render as **text as well as speech**. An oral exam that exists
+  only as audio is unusable for a hard-of-hearing student and unreadable in a
+  noisy classroom.
+- Progress is derived from counting the examiner's turns, so "Question 3 of 6"
+  is honest rather than the model announcing numbers it may get wrong.
+- Score uses **tabular figures** so the layout doesn't shift between a 7 and
+  a 10.
+- Every verdict carries **icon + text + colour**, never colour alone.
+- Viva is gated on `agoraConfigured` — an exam that can only fail is worse
+  than no exam — and on lab completion, since a viva on a practical you never
+  performed is a guaranteed bad first impression.
+
+### Scoring
+
+`POST /api/viva/score` takes the transcript and returns
+`{score, band, summary, questions[], strengths[], improve[]}`. The prompt
+explicitly tells Gemini the transcript came from speech recognition and to
+mark on evident understanding, **not** on exact terminology — otherwise every
+ASR mangling of "litmus" costs the student marks.
+
+## Multilingual voice
+
+Three options in **Settings → SPARK VOICE**, persisted per device and applied
+to every live session:
+
+| Option | ASR locale | Behaviour |
+|---|---|---|
+| English | `en-IN` | Clear Indian English |
+| हिंदी | `hi-IN` | Conversational Hindi |
+| Hinglish | `en-IN` | The Hindi-English mix a real classroom uses |
+
+**Scientific terms stay in English in every mode.** Students read "litmus",
+"solubility" and "circuit" in their NCERT textbook, so translating them makes
+the tutor harder to follow, not easier.
+
+A radio group rather than a dropdown: three options fit on screen, and a
+collapsed picker would hide Hindi from the students who most need it.
+
+Note that the TTS `voice_id` does **not** change per language. MiniMax's
+speech-2.6 models are multilingual and infer language from the text, and
+inventing unverified voice ids is how you get a 400 on a student's first tap.
+Override per language with `AGORA_TTS_VOICE_HI_IN` if a dedicated voice is
+ever confirmed.
+
+All three were verified against the live API (`SMOKE_LANG=hi-IN npm run
+smoke:agora`).
+
+## Interruption, second pass
+
+Barge-in worked but felt wrong in two ways, both fixed.
+
+### It cut in too early, or waited too long
+
+`turn_detection` now carries real tuning instead of just a language. The
+important field is `end_of_speech.mode: "semantic"`, which switches the engine
+from raw silence-timing to AIVAD — it waits for a **complete thought** rather
+than the first gap. A 13-year-old thinking aloud pauses mid-sentence, and
+silence-timing answers half their question.
+
+| Env var | Default | What it controls |
+|---|---|---|
+| `AGORA_INTERRUPT_MS` | 260 | Speech needed before the agent yields. 160 is instant but trips on a cough; 300–500 suits noisy rooms |
+| `AGORA_SPEAKING_INTERRUPT_MS` | 380 | Same, while the agent is mid-sentence. Higher, so room noise doesn't chop Spark off |
+| `AGORA_PREFIX_PADDING_MS` | 600 | Stops the first syllable being clipped — clipped first words are what make an interruption feel misheard |
+| `AGORA_SILENCE_MS` | 620 | How long a pause counts as "finished" |
+| `AGORA_MAX_WAIT_MS` | 3000 | Upper bound on waiting |
+
+### It forgot the conversation
+
+Stopping the audio is only half of barge-in. The real complaint — "it stops,
+then answers as if the last two minutes never happened" — is a *prompt*
+problem: the engine cancels the turn, the cancelled text stays in history as a
+fragment, and with no instruction the model treats the new question as a fresh
+conversation.
+
+`INTERRUPTION_RULES` in `server/agora.js` now tells Spark to: stop
+immediately, **not** restart the previous explanation, answer the new question
+first, then reconnect briefly to what it was explaining, and treat short
+signals ("wait", "slower", "I don't get it") as a cue to ask one clarifying
+question rather than launch into new material. Five regression checks assert
+those rules are present, and that the viva persona **excludes** them — an
+examiner reconnecting to "what we were explaining" would be leaking answers.
+
 ## Known limitations
 
 - **Transcript accuracy is ASR-bound.** Indian-English lab vocabulary

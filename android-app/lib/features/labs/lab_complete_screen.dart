@@ -7,6 +7,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/theme/logo.dart';
 import '../../data/models/lab.dart';
 import '../spark/spark_tts_service.dart';
+import '../viva/viva_screen.dart';
 
 /// Full-screen celebration shown when a student finishes a lab. Displays
 /// Spark's feedback, score, XP earned, and shortcuts to the practical file
@@ -203,6 +204,24 @@ class _LabCompleteScreenState extends ConsumerState<LabCompleteScreen> {
                     body:
                         'Keep completing labs to level up and earn badges.',
                   ),
+                  // Offered here because this is the moment the practical is
+                  // freshest in the student's head — the best time to be
+                  // questioned on it. Kept as a tappable next-step rather
+                  // than a third button, so "View report" stays the single
+                  // primary action on this screen.
+                  if (vivaAvailable)
+                    _NextItem(
+                      icon: Icons.record_voice_over_rounded,
+                      accent: LabSparkTokens.indigo600,
+                      title: 'Practise the viva for this lab',
+                      body:
+                          'Six spoken questions from an AI examiner, while it '
+                          'is still fresh. Marked out of 10.',
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        context.push('/viva', extra: widget.lab);
+                      },
+                    ),
                 ],
               ),
             ),
@@ -311,20 +330,30 @@ class _NextItem extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.body,
+    this.onTap,
+    this.accent,
   });
   final IconData icon;
   final String title;
   final String body;
 
+  /// When set the row becomes actionable and grows a chevron.
+  final VoidCallback? onTap;
+  final Color? accent;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+    final tint = accent ?? LabSparkTokens.teal600;
+    final card = Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: scheme.surface,
-        border: Border.all(color: scheme.outlineVariant),
+        border: Border.all(
+          color: onTap != null
+              ? tint.withValues(alpha: 0.35)
+              : scheme.outlineVariant,
+        ),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -333,10 +362,10 @@ class _NextItem extends StatelessWidget {
           Container(
             width: 36, height: 36,
             decoration: BoxDecoration(
-              color: LabSparkTokens.teal600.withValues(alpha: 0.12),
+              color: tint.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: LabSparkTokens.teal600, size: 18),
+            child: Icon(icon, color: tint, size: 18),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -358,8 +387,25 @@ class _NextItem extends StatelessWidget {
               ],
             ),
           ),
+          if (onTap != null)
+            Icon(Icons.chevron_right_rounded, color: tint, size: 20),
         ],
       ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: onTap == null
+          ? card
+          : Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(14),
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(14),
+                child: card,
+              ),
+            ),
     );
   }
 }

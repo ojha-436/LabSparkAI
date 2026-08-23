@@ -3,7 +3,21 @@ import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/agora_config.dart';
+import 'spark_language.dart';
 import '../../core/api/api_client.dart';
+
+/// Which persona the agent runs with.
+///
+/// A viva examiner and a tutor are almost opposites — one withholds help, the
+/// other gives it — so this is a session-level choice made at start time, not
+/// something togglable mid-conversation.
+enum SparkVoiceMode {
+  tutor('tutor'),
+  viva('viva');
+
+  const SparkVoiceMode(this.wire);
+  final String wire;
+}
 
 /// What the backend hands back after it has started a ConvoAI agent.
 class AgoraSession {
@@ -72,6 +86,8 @@ class AgoraSessionRepository {
   Future<AgoraSession> start({
     required String labId,
     required String labTitle,
+    SparkVoiceMode mode = SparkVoiceMode.tutor,
+    SparkLanguage language = SparkLanguage.english,
   }) async {
     final channel = _channelFor(labId);
     final uid = _uid();
@@ -82,6 +98,8 @@ class AgoraSessionRepository {
         'channel': channel,
         'uid': uid,
         'experiment': labTitle,
+        'mode': mode.wire,
+        'language': language.key,
       },
       // Starting an agent provisions ASR/LLM/TTS upstream — slower than a
       // plain Gemini text call, so the 12s default is too tight.
