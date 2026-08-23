@@ -25,7 +25,13 @@
 // so a named import of RtcRole fails at load time. Default-import and
 // destructure — the interop path that actually works under Node 20.
 import agoraToken from "agora-token";
-const { RtcTokenBuilder, RtcRole } = agoraToken;
+const { RtcTokenBuilder, RtcRole, RtmTokenBuilder } = agoraToken;
+
+/* AccessToken2 primitives, needed to mint ONE token carrying both RTC and RTM
+   privileges. `agora-token`'s convenience builders each emit a single-service
+   token, and the agent needs both — see mintAgentToken below. */
+import accessToken2 from "agora-token/src/AccessToken2.js";
+const { AccessToken2, ServiceRtc, ServiceRtm } = accessToken2;
 
 const APP_ID = process.env.AGORA_APP_ID;
 const APP_CERT = process.env.AGORA_APP_CERTIFICATE;
@@ -80,6 +86,27 @@ const TTS_MODEL = process.env.AGORA_TTS_MODEL || "speech-2.6-turbo";
    identity when live voice switches on. */
 const TTS_VOICE = process.env.AGORA_TTS_VOICE || "English_captivating_female1";
 
+/* ── Turn detection / interruption ──────────────────────────────────────
+   The engine needs turn_detection to know when a speaker's turn ends, and
+   `advanced_features.enable_rtm` to publish transcripts + agent state over
+   the Signaling channel. Without enable_rtm there are NO transcripts and no
+   agent-state events, which also means the client cannot tell when the
+   agent is speaking — and therefore cannot interrupt it. Matches the
+   official agent-quickstart-android reference server. */
+const TURN_DETECTION_LANGUAGE = process.env.AGORA_TURN_LANGUAGE || "en-US";
+/* "chorus" is the agent-side audio scenario the reference uses: least
+   processing, lowest latency, which is what barge-in needs. */
+const AGENT_AUDIO_SCENARIO = process.env.AGORA_AGENT_AUDIO_SCENARIO || "chorus";
+
+/* LLM sampling. Defaults mirror the reference quickstart. max_tokens is
+   deliberately generous — the *spoken-brevity* instruction lives in the
+   system prompt, not in a hard truncation that would cut Spark off
+   mid-sentence. */
+const LLM_MAX_TOKENS = Number(process.env.AGORA_LLM_MAX_TOKENS || 1024);
+const LLM_TEMPERATURE = Number(process.env.AGORA_LLM_TEMPERATURE || 0.7);
+const LLM_TOP_P = Number(process.env.AGORA_LLM_TOP_P || 0.95);
+const LLM_MAX_HISTORY = Number(process.env.AGORA_LLM_MAX_HISTORY || 15);
+
 export const agoraConfigured = Boolean(
   APP_ID && APP_CERT && CUSTOMER_KEY && CUSTOMER_SECRET
 );
@@ -97,6 +124,48 @@ function basicAuth() {
   return "Basic " + Buffer.from(`${CUSTOMER_KEY}:${CUSTOMER_SECRET}`).toString("base64");
 }
 
+/* RTM (Signaling) token for the transcript/state channel. Bound to a STRING
+   user id, unlike the RTC token which is bound to a numeric uid — they are
+   separate services and need separate tokens. */
+function mintRtmToken(userId) {
+  const expire = Math.floor(Date.now() / 1000) + TOKEN_TTL_SECONDS;
+  return RtmTokenBuilder.buildToken(APP_ID, APP_CERT, userId, expire);
+}
+
+/* ── The agent's token needs BOTH RTC and RTM privileges ─────────────────
+   With `advanced_features.enable_rtm` on, the agent logs in to Signaling to
+   publish transcripts and state. Agora's docs are explicit: "you must ensure
+   the token includes both RTC and RTM privileges."
+
+   An RTC-only token here fails silently and in the most confusing way
+   possible: join returns 200, the agent joins the channel, audio works
+   perfectly — and not one transcript or state event is ever published, so the
+   client can never tell the agent is speaking and can never interrupt it.
+
+   `RtcTokenBuilder` and `RtmTokenBuilder` each emit a single-service token, so
+   this drops to AccessToken2 and adds both services to one token. The
+   reference quickstart's `generate_convo_ai_token` does the same thing, which
+   is why it returns one token for both uses. */
+export function mintAgentToken(channel, uid) {
+  const now = Math.floor(Date.now() / 1000);
+  const expire = now + TOKEN_TTL_SECONDS;
+
+  const token = new AccessToken2(APP_ID, APP_CERT, now, expire);
+
+  const rtc = new ServiceRtc(channel, uid);
+  rtc.add_privilege(ServiceRtc.kPrivilegeJoinChannel, expire);
+  rtc.add_privilege(ServiceRtc.kPrivilegePublishAudioStream, expire);
+  token.add_service(rtc);
+
+  /* The agent's RTM identity is its uid as a string — the same convention the
+     client uses for its own RTM user id. */
+  const rtm = new ServiceRtm(String(uid));
+  rtm.add_privilege(ServiceRtm.kPrivilegeLogin, expire);
+  token.add_service(rtm);
+
+  return token.build();
+}
+
 function mintToken(channel, uid) {
   const now = Math.floor(Date.now() / 1000);
   const expire = now + TOKEN_TTL_SECONDS;
@@ -110,6 +179,10 @@ function mintToken(channel, uid) {
 function validChannel(name) {
   return typeof name === "string" && name.length > 0 && name.length <= 64 &&
     /^[A-Za-z0-9_-]+$/.test(name);
+}
+
+function validAgentId(id) {
+  return typeof id === "string" && /^[A-Za-z0-9_:-]{1,128}$/.test(id);
 }
 
 function validUid(uid) {
@@ -136,6 +209,18 @@ export function buildJoinPayload({ channel, uid, agentToken, lab, sparkSystem, a
       remote_rtc_uids: [String(uid)],
       enable_string_uid: false,
       idle_timeout: IDLE_TIMEOUT,
+      /* Lets the engine segment turns, which is what makes a mid-sentence
+         barge-in resolvable rather than garbled. */
+      turn_detection: { language: TURN_DETECTION_LANGUAGE },
+      /* enable_rtm is the switch that turns on transcripts AND agent-state
+         events. Everything the UI shows about who is speaking flows from it. */
+      advanced_features: { enable_rtm: true },
+      parameters: {
+        audio_scenario: AGENT_AUDIO_SCENARIO,
+        data_channel: "rtm",
+        enable_error_message: true,
+        enable_metrics: true,
+      },
       asr: {
         credential_mode: "managed",
         vendor: ASR_VENDOR,
@@ -163,8 +248,13 @@ export function buildJoinPayload({ channel, uid, agentToken, lab, sparkSystem, a
         ],
         greeting_message: `Hi! I'm Spark. Ready to explore ${lab} together?`,
         failure_message: "Sorry, I didn't catch that — could you say it again?",
-        max_history: 12,
-        params: { model: LLM_MODEL },
+        max_history: LLM_MAX_HISTORY,
+        params: {
+          model: LLM_MODEL,
+          max_tokens: LLM_MAX_TOKENS,
+          temperature: LLM_TEMPERATURE,
+          top_p: LLM_TOP_P,
+        },
       },
       tts: {
         credential_mode: "managed",
@@ -206,10 +296,14 @@ export function registerAgoraRoutes(app, sparkSystem) {
 
     /* Two tokens, same channel: one the student joins with, one the agent
        joins with. A token is bound to a single uid, so they cannot share. */
-    let studentToken, agentToken;
+    /* The RTM user id must be a string and must be distinct from the agent's.
+       Reusing the numeric uid keeps it traceable in the Agora console. */
+    const rtmUserId = String(uid);
+    let studentToken, agentToken, rtmToken;
     try {
       studentToken = mintToken(channel, uid);
-      agentToken = mintToken(channel, AGENT_UID);
+      agentToken = mintAgentToken(channel, AGENT_UID);
+      rtmToken = mintRtmToken(rtmUserId);
     } catch (err) {
       console.error("[agora] token mint failed:", err);
       return res.status(500).json({ error: "Could not mint RTC token." });
@@ -258,10 +352,52 @@ export function registerAgoraRoutes(app, sparkSystem) {
         token: studentToken,
         uid,
         agentUid: AGENT_UID,
+        /* Signaling credentials — the client logs in with these to receive
+           live transcripts and agent-state events. */
+        rtmToken,
+        rtmUserId,
       });
     } catch (err) {
       console.error("[agora] join error:", err);
       res.status(502).json({ error: "Could not reach Agora." });
+    }
+  });
+
+  /* ── Interrupt the agent mid-sentence ─────────────────────────────────
+     THIS is what makes barge-in work. The engine does not stop talking on
+     its own just because the student started speaking — the client detects
+     the overlap (via RTM transcripts + agent state) and calls this, which
+     cancels the agent's current turn.
+
+     Called on a hot path — every barge-in — so it stays cheap and never
+     throws at the client. */
+  app.post("/api/agora/interrupt", async (req, res) => {
+    if (!agoraConfigured) return res.status(503).json({ error: "Live voice is not configured." });
+
+    const { agentId } = req.body || {};
+    if (!validAgentId(agentId)) return res.status(400).json({ error: "Invalid agentId." });
+
+    try {
+      const r = await fetch(
+        `${CONVOAI_BASE}/${APP_ID}/agents/${encodeURIComponent(agentId)}/interrupt`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: basicAuth() },
+          body: "{}",
+        }
+      );
+      if (!r.ok) {
+        const text = await r.text();
+        /* A stale turn is the common case: the agent already finished
+           speaking before our interrupt landed. Not worth surfacing to a
+           student mid-conversation. */
+        console.warn(`[agora] interrupt ${agentId} → ${r.status}: ${text.slice(0, 200)}`);
+        return res.json({ ok: false, status: r.status });
+      }
+      res.json({ ok: true });
+    } catch (err) {
+      console.error("[agora] interrupt error:", err);
+      res.json({ ok: false });
     }
   });
 
@@ -270,9 +406,7 @@ export function registerAgoraRoutes(app, sparkSystem) {
     if (!agoraConfigured) return res.status(503).json({ error: "Live voice is not configured." });
 
     const { agentId } = req.body || {};
-    if (typeof agentId !== "string" || !/^[A-Za-z0-9_:-]{1,128}$/.test(agentId)) {
-      return res.status(400).json({ error: "Invalid agentId." });
-    }
+    if (!validAgentId(agentId)) return res.status(400).json({ error: "Invalid agentId." });
 
     try {
       const r = await fetch(

@@ -19,7 +19,7 @@ global.fetch = async (url, opts) => {
   return { ok: true, status: 200, text: async () => "{}" };
 };
 
-const { registerAgoraRoutes, agoraConfigured } = await import("./agora.js");
+const { registerAgoraRoutes, agoraConfigured, mintAgentToken } = await import("./agora.js");
 
 const app = express();
 app.use(express.json());
@@ -57,6 +57,9 @@ check("start returns 200", ok.status === 200, `got ${ok.status}`);
 check("returns agentId", ok.body.agentId === "agent-abc-123");
 check("returns student token", typeof ok.body.token === "string" && ok.body.token.startsWith("007"));
 check("returns agentUid 1000", ok.body.agentUid === 1000);
+check("returns rtmToken", typeof ok.body.rtmToken === "string" && ok.body.rtmToken.startsWith("007"));
+check("returns rtmUserId as string", ok.body.rtmUserId === "456789");
+check("rtmToken != rtcToken", ok.body.rtmToken !== ok.body.token);
 check("echoes channel", ok.body.channel === "spark-solubility-3f2a");
 
 const p = JSON.parse(captured.opts.body);
@@ -90,7 +93,45 @@ check("lab name injected", pr.llm.system_messages[0].content.includes("Solubilit
 check("spoken-style instruction present", pr.llm.system_messages[0].content.includes("speaking OUT LOUD"));
 check("tts managed mode", pr.tts.credential_mode === "managed");
 check("idle_timeout set", typeof pr.idle_timeout === "number" && pr.idle_timeout > 0);
+// Interruption depends on all of these. enable_rtm is the switch that turns on
+// transcripts AND agent-state events; without it the client can never know the
+// agent is speaking, so it can never barge in.
+check("advanced_features.enable_rtm true", pr.advanced_features?.enable_rtm === true);
+check("turn_detection.language set", typeof pr.turn_detection?.language === "string");
+check("parameters.data_channel is rtm", pr.parameters?.data_channel === "rtm");
+check("parameters.audio_scenario set", typeof pr.parameters?.audio_scenario === "string");
+check("parameters.enable_error_message true", pr.parameters?.enable_error_message === true);
+check("llm max_tokens set", typeof pr.llm.params.max_tokens === "number" && pr.llm.params.max_tokens > 0);
+check("llm temperature set", typeof pr.llm.params.temperature === "number");
+check("llm top_p set", typeof pr.llm.params.top_p === "number");
+check("llm max_history >= 12", pr.llm.max_history >= 12);
 check("agent name unique-ish", /^spark-456789-\d+$/.test(p.name));
+
+// ── the agent token MUST carry both RTC and RTM privileges ──
+// An RTC-only token here fails silently: join returns 200, audio works, and
+// not one transcript or state event is ever published — so the client can
+// never know the agent is speaking and can never interrupt it. This is the
+// single most expensive bug in this integration to diagnose from symptoms.
+{
+  const at2 = await import("agora-token/src/AccessToken2.js");
+  const { AccessToken2, kRtcServiceType, kRtmServiceType } = at2.default;
+  const built = mintAgentToken("spark-tok-test", 1000);
+  const parsed = new AccessToken2();
+  parsed.from_string(built);
+  const services = Object.keys(parsed.services);
+  check("agent token is an AccessToken2", built.startsWith("007"));
+  check("agent token carries RTC privileges", services.includes(String(kRtcServiceType)));
+  check("agent token carries RTM privileges", services.includes(String(kRtmServiceType)));
+  check("agent token has exactly the two services", services.length === 2,
+        `got [${services.join(",")}]`);
+}
+
+// ── interrupt path ──
+check("rejects bad agentId on interrupt", (await post("/api/agora/interrupt", { agentId: "../../x" })).status === 400);
+const itr = await post("/api/agora/interrupt", { agentId: "agent-abc-123" });
+check("interrupt returns 200", itr.status === 200);
+check("interrupt hits the interrupt endpoint", captured.url.endsWith("/agents/agent-abc-123/interrupt"));
+check("interrupt sends an empty JSON body", captured.opts.body === "{}");
 
 // ── stop path ──
 const st = await post("/api/agora/stop", { agentId: "agent-abc-123" });

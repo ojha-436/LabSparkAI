@@ -39,6 +39,22 @@ android {
         multiDexEnabled true
     }
 
+    packagingOptions {
+        jniLibs {
+            // agora_rtc_engine and agora_rtm both bundle libaosl.so (Agora's
+            // shared Object Store Layer) plus a few other common natives.
+            // Identical libraries shipped by two plugins, so the merge task
+            // aborts with "2 files found with path ...". Take the first rather
+            // than failing the build.
+            pickFirsts += [
+                'lib/**/libaosl.so',
+                'lib/**/libagora-fdkaac.so',
+                'lib/**/libagora-ffmpeg.so',
+                'lib/**/libagora-soundtouch.so',
+            ]
+        }
+    }
+
     buildTypes {
         release {
             // For now, sign with debug keys so `flutter run --release` works.

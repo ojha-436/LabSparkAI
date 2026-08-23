@@ -7,6 +7,7 @@ import '../../core/api/agora_config.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/theme/logo.dart';
 import '../../data/models/lab.dart';
+import '../spark/agora_transcript.dart';
 import '../spark/agora_voice_service.dart';
 import '../spark/spark_conversation.dart';
 import '../spark/spark_repository.dart';
@@ -86,7 +87,10 @@ class _SparkLabSheetState extends ConsumerState<SparkLabSheet> {
     HapticFeedback.selectionClick();
 
     if (_voice.isActive) {
+      // Capture before stopping — teardown clears the transcript.
+      final turns = List<TranscriptTurn>.of(_voice.state.value.transcript);
       await _voice.stop();
+      _persistTranscript(turns);
       return;
     }
 
@@ -108,6 +112,32 @@ class _SparkLabSheetState extends ConsumerState<SparkLabSheet> {
         behavior: SnackBarBehavior.floating,
       ));
     }
+  }
+
+  /// Folds a finished live conversation into the lab's persisted history, so
+  /// the student can scroll back through what was actually said instead of
+  /// losing it the moment they hang up.
+  ///
+  /// Only settled turns are kept: an in-progress turn is a half-recognised
+  /// fragment that would read as gibberish in the history.
+  void _persistTranscript(List<TranscriptTurn> turns) {
+    final notifier = ref.read(sparkConversationProvider(widget.lab.id).notifier);
+    for (final turn in turns) {
+      if (!turn.isFinal) continue;
+      final text = turn.text.trim();
+      if (text.isEmpty) continue;
+      notifier.append(SparkMessage(
+        text: turn.status == TranscriptTurnStatus.interrupted
+            ? '$text…'
+            : text,
+        fromSpark: turn.speaker == TranscriptSpeaker.spark,
+        timestamp: DateTime.fromMillisecondsSinceEpoch(turn.createdAtMillis),
+        // Already spoken aloud during the live session — must not be
+        // re-narrated by flutter_tts when the sheet rebuilds.
+        spoken: true,
+      ));
+    }
+    if (turns.isNotEmpty) _bump();
   }
 
   Future<void> _initStt() async {
@@ -300,16 +330,15 @@ class _SparkLabSheetState extends ConsumerState<SparkLabSheet> {
                 ),
                 const Divider(height: 1),
                 Expanded(
-                  child: ListView.builder(
-                    controller: _scroll,
-                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-                    itemCount: messages.length + (_thinking ? 1 : 0),
-                    itemBuilder: (context, i) {
-                      if (_thinking && i == messages.length) {
-                        return const _ThinkingBubble();
-                      }
-                      return _MessageBubble(msg: messages[i]);
-                    },
+                  // The saved history ALWAYS stays on screen. Live turns are
+                  // appended beneath it, never substituted for it — an earlier
+                  // version swapped the list out, which meant a session with
+                  // no transcript showed the student a blank panel.
+                  child: _ConversationList(
+                    scroll: _scroll,
+                    messages: messages,
+                    thinking: _thinking,
+                    live: live,
                   ),
                 ),
                 if (messages.length <= 1 && !live.isActive)
@@ -317,21 +346,32 @@ class _SparkLabSheetState extends ConsumerState<SparkLabSheet> {
                 // While live, the composer is replaced rather than merely
                 // disabled: sending text would fire the turn-based Gemini
                 // path and speak over the agent through the same speaker.
-                if (live.isActive)
-                  _LiveVoiceBar(
-                    state: live,
-                    onMute: () => _voice.setMuted(!live.muted),
-                    onEnd: _toggleLive,
-                  )
-                else
-                  _Composer(
-                    controller: _controller,
-                    enabled: !_thinking,
-                    listening: _listening,
-                    onSend: () => _send(),
-                    onMic: _toggleMic,
-                    sttReady: _sttReady,
+                // Cross-fade rather than snap: the bar and the composer are
+                // different heights, and a hard swap reads as a glitch.
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOut,
+                  alignment: Alignment.topCenter,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: live.isActive
+                        ? _LiveVoiceBar(
+                            key: const ValueKey('live'),
+                            state: live,
+                            onMute: () => _voice.setMuted(!live.muted),
+                            onEnd: _toggleLive,
+                          )
+                        : _Composer(
+                            key: const ValueKey('composer'),
+                            controller: _controller,
+                            enabled: !_thinking,
+                            listening: _listening,
+                            onSend: () => _send(),
+                            onMic: _toggleMic,
+                            sttReady: _sttReady,
+                          ),
                   ),
+                ),
               ],
             ),
           );
@@ -384,14 +424,19 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     // The live session outranks the turn-based indicators — when it's up,
     // that IS the state the student cares about.
+    // While live, the engine's own agent state is the truth — it leads the
+    // audio slightly, so the label changes as Spark starts rather than a beat
+    // after the student already heard it.
     final (String status, Color statusColor) = switch (live.status) {
       SparkVoiceStatus.starting => ('connecting…', LabSparkTokens.amber500),
       SparkVoiceStatus.connecting => ('waking Spark…', LabSparkTokens.amber500),
-      SparkVoiceStatus.live when live.sparkSpeaking =>
-        ('live · Spark is speaking', LabSparkTokens.indigo600),
-      SparkVoiceStatus.live when live.studentSpeaking =>
-        ('live · listening to you', LabSparkTokens.rose600),
-      SparkVoiceStatus.live => ('live · just start talking', LabSparkTokens.indigo600),
+      SparkVoiceStatus.live => switch (live.agentState) {
+          AgentState.speaking =>
+            ('live · Spark is speaking — cut in any time', LabSparkTokens.indigo600),
+          AgentState.thinking => ('live · thinking…', LabSparkTokens.amber500),
+          AgentState.listening => ('live · listening', LabSparkTokens.rose600),
+          _ => ('live · just start talking', LabSparkTokens.teal600),
+        },
       SparkVoiceStatus.ending => ('ending…', LabSparkTokens.slate500),
       _ when listening => ('listening…', LabSparkTokens.rose600),
       _ when thinking => ('thinking…', LabSparkTokens.amber500),
@@ -682,6 +727,7 @@ class _SuggestionStrip extends StatelessWidget {
 
 class _Composer extends StatelessWidget {
   const _Composer({
+    super.key,
     required this.controller,
     required this.enabled,
     required this.listening,
@@ -819,6 +865,7 @@ class _MicButton extends StatelessWidget {
 /// mute and hang up.
 class _LiveVoiceBar extends StatelessWidget {
   const _LiveVoiceBar({
+    super.key,
     required this.state,
     required this.onMute,
     required this.onEnd,
@@ -964,6 +1011,242 @@ class _VoiceOrb extends StatelessWidget {
         muted ? Icons.mic_off_rounded : Icons.auto_awesome_rounded,
         color: Colors.white,
         size: 20,
+      ),
+    );
+  }
+}
+
+/// The conversation panel.
+///
+/// Saved history first, then any live turns from the current session, then a
+/// status footer. Structured this way so the panel is **never empty** during a
+/// live session: if signaling is unavailable the student still sees their lab
+/// history plus a live status line, rather than a blank rectangle.
+class _ConversationList extends StatefulWidget {
+  const _ConversationList({
+    required this.scroll,
+    required this.messages,
+    required this.thinking,
+    required this.live,
+  });
+
+  final ScrollController scroll;
+  final List<SparkMessage> messages;
+  final bool thinking;
+  final SparkVoiceState live;
+
+  @override
+  State<_ConversationList> createState() => _ConversationListState();
+}
+
+class _ConversationListState extends State<_ConversationList> {
+  @override
+  void didUpdateWidget(_ConversationList old) {
+    super.didUpdateWidget(old);
+    // A streaming turn grows in place, so following only on count changes
+    // would leave the newest text off-screen mid-sentence.
+    final grew = widget.messages.length != old.messages.length ||
+        widget.live.transcript.length != old.live.transcript.length ||
+        _tailText(widget.live) != _tailText(old.live);
+    if (grew) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!widget.scroll.hasClients) return;
+        widget.scroll.animateTo(
+          widget.scroll.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+        );
+      });
+    }
+  }
+
+  static String _tailText(SparkVoiceState s) =>
+      s.transcript.isEmpty ? '' : s.transcript.last.text;
+
+  @override
+  Widget build(BuildContext context) {
+    final turns = widget.live.transcript;
+    final showThinking = widget.thinking && !widget.live.isActive;
+    final showFooter = widget.live.isActive;
+
+    final count = widget.messages.length +
+        turns.length +
+        (showThinking ? 1 : 0) +
+        (showFooter ? 1 : 0);
+
+    return ListView.builder(
+      controller: widget.scroll,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+      itemCount: count,
+      itemBuilder: (context, i) {
+        if (i < widget.messages.length) {
+          return _MessageBubble(msg: widget.messages[i]);
+        }
+        var j = i - widget.messages.length;
+
+        if (showThinking && j == 0) return const _ThinkingBubble();
+        if (showThinking) j -= 1;
+
+        if (j < turns.length) return _TranscriptBubble(turn: turns[j]);
+
+        return _LiveFooter(live: widget.live);
+      },
+    );
+  }
+}
+
+/// Always-visible footer during a live session.
+///
+/// This is what replaced the blank panel: even with no transcript at all, the
+/// student can see that the line is open and whose turn it is.
+class _LiveFooter extends StatelessWidget {
+  const _LiveFooter({required this.live});
+  final SparkVoiceState live;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    final (String label, Color color, IconData icon) = switch (live.agentState) {
+      AgentState.speaking => (
+          'Spark is speaking — just cut in',
+          LabSparkTokens.indigo600,
+          Icons.graphic_eq_rounded,
+        ),
+      AgentState.thinking => (
+          'Spark is thinking…',
+          LabSparkTokens.amber500,
+          Icons.more_horiz_rounded,
+        ),
+      AgentState.listening => (
+          'Listening…',
+          LabSparkTokens.rose600,
+          Icons.mic_rounded,
+        ),
+      _ => live.transcript.isEmpty
+          ? (
+              'Line open — say hello',
+              LabSparkTokens.teal600,
+              Icons.record_voice_over_rounded,
+            )
+          : ('Your turn', LabSparkTokens.teal600, Icons.mic_none_rounded),
+    };
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 4),
+      child: Center(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: color.withValues(alpha: 0.30)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 7),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+              if (live.muted) ...[
+                const SizedBox(width: 8),
+                Icon(Icons.mic_off_rounded,
+                    size: 13, color: scheme.onSurfaceVariant),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TranscriptBubble extends StatelessWidget {
+  const _TranscriptBubble({required this.turn});
+  final TranscriptTurn turn;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final fromSpark = turn.speaker == TranscriptSpeaker.spark;
+    final interrupted = turn.status == TranscriptTurnStatus.interrupted;
+    final streaming = turn.status == TranscriptTurnStatus.inProgress;
+
+    final bg = fromSpark ? scheme.surfaceContainerHigh : LabSparkTokens.teal600;
+    final fg = fromSpark ? scheme.onSurface : Colors.white;
+
+    return Container(
+      alignment: fromSpark ? Alignment.centerLeft : Alignment.centerRight,
+      padding: const EdgeInsets.only(bottom: 8),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.82,
+        ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(16),
+              topRight: const Radius.circular(16),
+              bottomLeft: Radius.circular(fromSpark ? 4 : 16),
+              bottomRight: Radius.circular(fromSpark ? 16 : 4),
+            ),
+            // A dashed-feel outline while the turn is still being recognised,
+            // so a student can tell a half-heard phrase from a settled one.
+            border: streaming
+                ? Border.all(
+                    color: fromSpark
+                        ? scheme.outlineVariant
+                        : Colors.white.withValues(alpha: 0.45),
+                  )
+                : null,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                turn.text.isEmpty ? '…' : turn.text,
+                style: TextStyle(
+                  color: fg,
+                  fontSize: 14.5,
+                  height: 1.4,
+                  fontStyle: streaming ? FontStyle.italic : FontStyle.normal,
+                ),
+              ),
+              if (interrupted) ...[
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.pan_tool_rounded,
+                        size: 11,
+                        color: fg.withValues(alpha: 0.7)),
+                    const SizedBox(width: 4),
+                    Text(
+                      'you cut in',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: fg.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }

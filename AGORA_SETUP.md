@@ -222,12 +222,96 @@ library the SDK does end up loading fails at session start, in release only,
 and there is no device attached yet to verify it. Do this after live voice is
 confirmed working, never before.
 
+## Interruption (barge-in) and transcripts
+
+Both were added in a second pass after on-device testing showed interruption
+was unreliable and no transcript appeared. Both had the same root cause.
+
+### Why interruption did not work
+
+**The engine does not stop talking on its own when the student speaks.** There
+is no automatic barge-in. The client has to notice the overlap and explicitly
+cancel the agent's turn:
+
+```
+POST /api/conversational-ai-agent/v2/projects/{appId}/agents/{agentId}/interrupt
+```
+
+The first implementation never called it, so Spark talked over the student
+until it finished its sentence.
+
+To *notice* the overlap the client needs to know Spark is currently speaking,
+and that state only arrives over Signaling (RTM) — which was also switched off.
+So one missing flag disabled both features at once:
+
+```js
+advanced_features: { enable_rtm: true },
+parameters: { data_channel: "rtm", ... },
+turn_detection: { language: "en-US" },
+```
+
+### The self-speech echo trap
+
+The phone's speaker sits centimetres from its microphone. Echo cancellation is
+good, not perfect. What leaks through reaches ASR, comes back as a *user*
+transcript, and — since a user transcript during agent speech is the barge-in
+signal — makes **Spark interrupt itself** mid-sentence. To a student that reads
+as Spark randomly stopping and losing the thread.
+
+`agora_self_speech_filter.dart` (ported from the reference `SelfSpeechFilter
+.kt`) holds Spark's live sentence and discards user partials that closely match
+it. Critically, a whitelist of short cut-ins — *stop, wait, no, why, hold on,
+slow down* — is never filtered, even when the same word appears in what Spark
+is saying. Filtering those would swallow exactly the interruptions this whole
+change exists to support.
+
+### Interrupt debouncing
+
+ASR emits a partial every few hundred milliseconds. Firing an interrupt per
+partial would cancel the same turn a dozen times, so `_requestInterrupt` fires
+at most once per `turn_id`, with a 1.2s floor when no turn id is available, and
+only while the engine reports the agent as `speaking`.
+
+### Transcripts
+
+`user.transcription` and `assistant.transcription` arrive over RTM as JSON.
+Each turn is sent repeatedly as it grows, so `agora_transcript.dart` upserts by
+`speaker:turn_id:stream_id` — appending instead would render one sentence as
+twenty bubbles. In-progress turns render italic with an outline; interrupted
+agent turns are tagged *"you cut in"*.
+
+**Correcting an earlier claim in this document:** transcripts were described as
+impossible in Flutter because the convenience layer ships only for
+Android/iOS/Web. That was wrong. `agora_rtm` ^2.2.6 is an official Agora
+Flutter plugin with the full RTM 2.x API, and the transcript payloads are plain
+JSON — no convenience layer needed. Live-voice turns are now also folded into
+the lab's persisted history when the session ends.
+
+### Audio configuration changes
+
+| Setting | Before | Now | Why |
+|---|---|---|---|
+| Channel profile | `liveBroadcasting` | `communication` | Live-broadcasting optimises one-way quality; communication applies the AEC/AGC tuning a full-duplex exchange needs. |
+| Audio scenario | `audioScenarioAiClient` | unchanged | Audio was confirmed clear on device; not worth regressing. |
+| Agent-side scenario | — | `chorus` | What the reference uses: least processing, lowest latency. |
+| Audio route | default | `setDefaultAudioRouteToSpeakerphone(true)` | A phone flat on a desk must still be audible. |
+
+The mic is deliberately **left open while Spark speaks**. Muting it would kill
+echo cheaply and make barge-in impossible.
+
+### Reference
+
+Ported from [AgoraIO-Conversational-AI/agent-quickstart-android](https://github.com/AgoraIO-Conversational-AI/agent-quickstart-android)
+— specifically `TranscriptAssembler.kt`, `SelfSpeechFilter.kt`,
+`AgoraConversationSessionManager.kt`, and the join payload in
+`server/app/agora_client.py`.
+
 ## Known limitations
 
-- **No live captions.** ConvoAI streams transcripts over Agora's RTM signaling
-  channel, and the convenience layer for that ships for Android/iOS/Web but
-  not Flutter. Live-voice turns therefore do **not** appear in the persisted
-  per-lab conversation history. Text-mode Q&A still does.
+- **Transcript accuracy is ASR-bound.** Indian-English lab vocabulary
+  ("litmus", "solubility") is sometimes misheard. The transcript shows what
+  the ASR actually heard, which makes it the fastest way to diagnose why Spark
+  answered oddly. Tune with `AGORA_ASR_MODEL` / `AGORA_ASR_LANGUAGE`.
 - **Gemini via the OpenAI-compat endpoint** is the one part of this that is
   unverified against real traffic. If the agent connects but never speaks,
   check the Cloud Run logs for the ConvoAI error body, then fall back to a

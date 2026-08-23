@@ -12,7 +12,7 @@
      node --env-file=.env agora.smoke.mjs
    ════════════════════════════════════════════════════════════════ */
 import agoraToken from "agora-token";
-import { buildJoinPayload, agoraConfigured } from "./agora.js";
+import { buildJoinPayload, mintAgentToken, agoraConfigured } from "./agora.js";
 const { RtcTokenBuilder, RtcRole } = agoraToken;
 
 if (!agoraConfigured) {
@@ -30,9 +30,9 @@ const BASE = "https://api.agora.io/api/conversational-ai-agent/v2/projects";
 const channel = "spark-smoke-" + Math.floor(Math.random() * 1e9).toString(36);
 const uid = 456789;
 const agentUid = Number(process.env.AGORA_AGENT_UID || 1000);
-const exp = Math.floor(Date.now() / 1000) + 600;
-const agentToken = RtcTokenBuilder.buildTokenWithUid(
-  APP_ID, CERT, channel, agentUid, RtcRole.PUBLISHER, exp, exp);
+/* Uses the route's own minting function, so this exercises the combined
+   RTC+RTM agent token rather than a hand-rolled RTC-only one. */
+const agentToken = mintAgentToken(channel, agentUid);
 
 const payload = buildJoinPayload({
   channel, uid, agentToken,

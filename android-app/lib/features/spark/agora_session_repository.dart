@@ -13,6 +13,8 @@ class AgoraSession {
     required this.token,
     required this.uid,
     required this.agentUid,
+    required this.rtmToken,
+    required this.rtmUserId,
   });
 
   /// ConvoAI agent id — needed to stop the agent again. Leaking the channel
@@ -24,6 +26,16 @@ class AgoraSession {
   final String token;
   final int uid;
   final int agentUid;
+
+  /// Signaling credentials for the transcript + agent-state channel. Separate
+  /// service from RTC, so a separate token bound to a string user id.
+  final String rtmToken;
+  final String rtmUserId;
+
+  /// Transcripts and agent state are optional extras — if the backend is on an
+  /// older revision that doesn't mint an RTM token, voice still works, just
+  /// without captions or barge-in detection.
+  bool get supportsSignaling => rtmToken.isNotEmpty && rtmUserId.isNotEmpty;
 }
 
 /// Start/stop facade over the ConvoAI REST API, proxied through our own
@@ -91,7 +103,28 @@ class AgoraSessionRepository {
       token: token,
       uid: res['uid'] as int? ?? uid,
       agentUid: res['agentUid'] as int? ?? kAgoraAgentUid,
+      rtmToken: res['rtmToken'] as String? ?? '',
+      rtmUserId: res['rtmUserId'] as String? ?? '',
     );
+  }
+
+  /// Cancels the agent's current speaking turn.
+  ///
+  /// This is what makes barge-in work: the engine does not stop talking just
+  /// because the student started. Called on a hot path — every interruption —
+  /// so it is fire-and-forget with a tight timeout. A late interrupt is worse
+  /// than none, and blocking the audio path to await one would be worst of all.
+  Future<void> interrupt(String agentId) async {
+    try {
+      await _api.postJson(
+        '/api/agora/interrupt',
+        {'agentId': agentId},
+        timeout: const Duration(seconds: 4),
+      );
+    } catch (_) {
+      // Swallowed: the turn may already have ended, and there is nothing
+      // useful to tell a student mid-conversation.
+    }
   }
 
   /// Tells the agent to leave. Best-effort by design: if this fails the agent
